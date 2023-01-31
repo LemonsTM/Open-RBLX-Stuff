@@ -101,11 +101,11 @@ local Skills = {
 			delay_ = 0
 		},
 		["rbxassetid://11877147110"] = {	-- Bomb Bomb, DestructRelease
-			range = 15,
+			range = 50,
 			delay_ = 0
 		},
 		["rbxassetid://11877731128"] = {	-- Bomb Bomb, ShotRelease
-			range = 10,
+			range = 25,
 			delay_ = 0
 		},
 		["rbxassetid://11964993262"] = {	-- Kilo Kilo, Fall

@@ -2,114 +2,102 @@ local Skills = {
 		-- add each individual skill's range and retard
 		["rbxassetid://9597315047"] = { 	-- One Sword Style, Z Release
 			range = 100,
-			delay_ = 0.1
+			delay_ = 0
 		},
 		["rbxassetid://10914137175"] = { 	-- One Sword Style, Dragonblaze
 			range = 100,
-			delay_ = 3.5
+			delay_ = 1.8
 		},
 		["rbxassetid://9609253308"] = { 	-- One Sword Style, Dragon Slash
 			range = 75,
-			delay_ = 0.3
+			delay_ = 1
 		},
 		["rbxassetid://9621505270"] = { 	-- One Sword Style, Cylcone
 			range = 10,
-			delay_ = 0.25
+			delay_ = 0
 		},
 		["rbxassetid://9653002400"] = { 	-- Black Leg, ConcasserAction
 			range = 20,
-			delay_ = 1
+			delay_ = 2
 		},
 		["rbxassetid://9659506499"] = { 	-- Black Leg, ConcasserKick
 			range = 20,
-			delay_ = 1
+			delay_ = 0.15
 		},
-		["rbxassetid://9650877548"] = { 	-- Black Leg, ParageShoot
+		["rbxassetid://1089348838"] = { 	-- Black Leg, ParageShootAction
 			range = 15,
-			delay_ = 1
+			delay_ = 1.1
 		},
-		["rbxassetid://9644919103"] = { 	-- Black Leg, PartyKicks
+		["rbxassetid://10859636117"] = { 	-- Black Leg, PartyKicks
 			range = 15,
-			delay_ = 1
+			delay_ = 0.6
 		},
 		["rbxassetid://10856153937"] = { 	-- Black Leg, CoillerKick
-			range = 5,
+			range = 10,
 			delay_ = 0
 		},
 		["rbxassetid://9650260058"] = { 	-- Black Leg, CoillerKick2
-			range = 5,
+			range = 10,
 			delay_ = 0
 		},
 		["rbxassetid://10898113496"] = { 	-- Black Leg, Desukiku Release
-			range = 25,
-			delay_ = 0.5
-		},
-		["rbxassetid://10859636117"] = {	-- Black Leg, ParageShoot Action
-			range = 10,
-			delay_ = 0.1
+			range = 30,
+			delay_ = 0
 		},
 		["rbxassetid://9716260471"] = {		-- Spin Spin, DisasterAction 
-			range = 10,
-			delay_ = 0
-		},
-		["rbxassetid://9716257610"] = {		-- Spin Spin, DisasterLoop
-			range = 10,
-			delay_ = 0
-		},
-		["rbxassetid://9708793708"] = {		-- Spin Spin, DisasterAssualt
-			range = 10,
-			delay_ = 0
+			range = 15,
+			delay_ = 0.4
 		},
 		["rbxassetid://9546943533"] = {		-- Flame Flame, HikenRelease
 			range = 15,
-			delay_ = 0.2
+			delay_ = 0.05
 		},
 		["rbxassetid://9417540929"] = {		-- Flame Flame, PilarRelease
-			range = 10,
-			delay_ = 0
+			range = 25,
+			delay_ = 0.5
 		},
 		["rbxassetid://9610452141"] = {		-- Flame Flame, SnapRelease
-			range = 20,
-			delay_ = 0
+			range = 50,
+			delay_ = 0.55
 		},
 		["rbxassetid://6892154163"] = {		-- Flame Flame, DragonClaw
-			range = 15,
-			delay_ = 0
+			range = 35,
+			delay_ = 0.4
 		},
 		["rbxassetid://10525478325"] = {	-- Ice Ice, Stomp
-			range = 25,
-			delay_ = 0
+			range = 35,
+			delay_ = 0.65
 		},
 		["rbxassetid://10459965461"] = {	-- Ice Ice, HammerRelease
 			range = 25,
-			delay_ = 0
+			delay_ = 0.4
 		},
 		["rbxassetid://11928129691"] = {	-- Ice Ice, Froozen
-			range = 25,
+			range = 35,
 			delay_ = 0
 		},
 		["rbxassetid://10461031182"] = {	-- Ice Ice, IceSpear
 			range = 10,
-			delay_ = 0
+			delay_ = 0.2
 		},
 		["rbxassetid://10461053519"] = {	-- Ice Ice, RainRelease
 			range = 10,
-			delay_ = 0
+			delay_ = 0.4
 		},
 		["rbxassetid://11867489139"] = {	-- Bomb Bomb, RushRelease
 			range = 15,
 			delay_ = 0
 		},
 		["rbxassetid://11877147110"] = {	-- Bomb Bomb, DestructRelease
-			range = 50,
+			range = 150,
 			delay_ = 0
 		},
 		["rbxassetid://11877731128"] = {	-- Bomb Bomb, ShotRelease
 			range = 25,
-			delay_ = 0
+			delay_ = 0.25
 		},
 		["rbxassetid://11964993262"] = {	-- Kilo Kilo, Fall
-			range = 20,
+			range = 50,
 			delay_ = 0.5
 		},
 		["rbxassetid://11957855633"] = {	-- Kilo Kilo, Walk

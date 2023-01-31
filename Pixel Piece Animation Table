@@ -41,7 +41,7 @@ local Skills = {
 			delay_ = 0
 		},
 		["rbxassetid://10898113496"] = { 	-- Black Leg, Desukiku Release
-			range = 30,
+			range = 50,
 			delay_ = 0
 		},
 		["rbxassetid://9716260471"] = {		-- Spin Spin, DisasterAction 
@@ -93,8 +93,8 @@ local Skills = {
 			delay_ = 0
 		},
 		["rbxassetid://11877731128"] = {	-- Bomb Bomb, ShotRelease
-			range = 25,
-			delay_ = 0.25
+			range = 50,
+			delay_ = 0
 		},
 		["rbxassetid://11964993262"] = {	-- Kilo Kilo, Fall
 			range = 50,

@@ -40,7 +40,7 @@ local Skills = {
 			range = 10,
 			delay_ = 0
 		},
-		["rbxassetid://10898113496"] = { 	-- Black Leg, Desukiku Release
+		["rbxassetid://10898105896"] = { 	-- Black Leg, Desukiku Idle
 			range = 50,
 			delay_ = 0
 		},

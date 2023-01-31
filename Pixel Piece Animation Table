@@ -85,7 +85,7 @@ local Skills = {
 			delay_ = 0.4
 		},
 		["rbxassetid://11867489139"] = {	-- Bomb Bomb, RushRelease
-			range = 15,
+			range = 50,
 			delay_ = 0
 		},
 		["rbxassetid://11877147110"] = {	-- Bomb Bomb, DestructRelease

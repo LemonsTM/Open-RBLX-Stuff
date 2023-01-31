@@ -6,7 +6,7 @@ local Skills = {
 		},
 		["rbxassetid://10914137175"] = { 	-- One Sword Style, Dragonblaze
 			range = 100,
-			delay_ = 1.8
+			delay_ = 1.2
 		},
 		["rbxassetid://9609253308"] = { 	-- One Sword Style, Dragon Slash
 			range = 75,

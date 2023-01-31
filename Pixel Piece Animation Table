@@ -1,5 +1,4 @@
-_G.animations = {
-	Skills = {
+local Skills = {
 		-- add each individual skill's range and retard
 		["rbxassetid://9597315047"] = { 	-- One Sword Style, Z Release
 			range = 100,
@@ -118,4 +117,4 @@ _G.animations = {
 			delay_ = 0.5
 		},
 	}
-}
+return Skills

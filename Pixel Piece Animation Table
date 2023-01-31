@@ -1,0 +1,209 @@
+_G.animations = {
+	M1 = {
+		range = 10,
+		delay_ = 0.01,
+		ids = {
+			"rbxassetid://9638321009",
+			"rbxassetid://9638325045",
+			"rbxassetid://9638326971",
+			"rbxassetid://9469768943",
+			"rbxassetid://9469766350",
+			"rbxassetid://9469764305",
+			"rbxassetid://9787480581",
+			"rbxassetid://9787482970",
+			"rbxassetid://10781840251",
+			"rbxassetid://10781844679",
+			"rbxassetid://10781832655",
+			"rbxassetid://10781846446",
+			"rbxassetid://10781851111",
+			"rbxassetid://9643537604",
+			"rbxassetid://9643546303",
+			"rbxassetid://9643552613",
+			"rbxassetid://9644466114",
+			"rbxassetid://9643561491",
+			"rbxassetid://10781840251",
+			"rbxassetid://10781844679",
+			"rbxassetid://10781832655",
+			"rbxassetid://10781846446",
+			"rbxassetid://10781851111",
+			"rbxassetid://9710887153",
+			"rbxassetid://9710894866",
+			"rbxassetid://9710897941",
+			"rbxassetid://9710899393",
+			"rbxassetid://9710900627",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667235243",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667363803",
+			"rbxassetid://9483372910",
+			"rbxassetid://9585650555",
+			"rbxassetid://9585648296",
+			"rbxassetid://9585645297",
+			"rbxassetid://9585652362",
+			"rbxassetid://10116551613",
+			"rbxassetid://10116558727",
+			"rbxassetid://10116560819",
+			"rbxassetid://10116564471",
+			"rbxassetid://10116569260",
+			"rbxassetid://9710887153",
+			"rbxassetid://9710894866",
+			"rbxassetid://9710897941",
+			"rbxassetid://9710899393",
+			"rbxassetid://9710900627",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667235243",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667363803",
+			"rbxassetid://9483372910",
+			"rbxassetid://10398065990",
+			"rbxassetid://10398166509",
+			"rbxassetid://10398180881",
+			"rbxassetid://10398184415",
+			"rbxassetid://10398187804",
+			"rbxassetid://10665833864",
+			"rbxassetid://10665860261",
+			"rbxassetid://10665870778",
+			"rbxassetid://10665874021",
+			"rbxassetid://10666420490",
+			"rbxassetid://9710887153",
+			"rbxassetid://9710894866",
+			"rbxassetid://9710897941",
+			"rbxassetid://9710899393",
+			"rbxassetid://9710900627",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667235243",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667363803",
+			"rbxassetid://9483372910",
+			"rbxassetid://10665833864",
+			"rbxassetid://10665860261",
+			"rbxassetid://10665870778",
+			"rbxassetid://10665874021",
+			"rbxassetid://10666420490",
+			"rbxassetid://9710887153",
+			"rbxassetid://9710894866",
+			"rbxassetid://9710897941",
+			"rbxassetid://9710899393",
+			"rbxassetid://9710900627",
+			"rbxassetid://9710887153",
+			"rbxassetid://9710894866",
+			"rbxassetid://9710897941",
+			"rbxassetid://9710899393",
+			"rbxassetid://9710900627",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667235243",
+			"rbxassetid://9667229893",
+			"rbxassetid://9667363803",
+			"rbxassetid://9483372910",
+			"rbxassetid://11462036319",
+			"rbxassetid://9710887153",
+			"rbxassetid://9710894866",
+			"rbxassetid://9710897941",
+			"rbxassetid://9710899393",
+			"rbxassetid://9710900627",
+			"rbxassetid://11860328429",
+			"rbxassetid://11860330147",
+			"rbxassetid://11860383978",
+			"rbxassetid://11860333468",
+			"rbxassetid://11860334741",
+			"rbxassetid://12274484203",
+			"rbxassetid://12274490716",
+			"rbxassetid://12274484203",
+			"rbxassetid://12274490716",
+			"rbxassetid://12274503303",
+			"rbxassetid://12274901119",
+			"rbxassetid://9476865480",
+			"rbxassetid://9476872394",
+			"rbxassetid://9476890093",
+			"rbxassetid://9476880954",
+			"rbxassetid://10835592087",         
+		}
+	},
+	Skills = {
+		-- add each individual skill's range and retard
+		["rbxassetid://9597315047"] = {
+			range = 100,
+			delay_ = 0.1
+		},
+		["rbxassetid://9653002400"] = {
+			range = 10,
+			delay_ = 1
+		},
+		["rbxassetid://10859636117"] = {
+			range = 5,
+			delay_ = 0.1
+		},
+		["rbxassetid://9650260058"] = {
+			range = 5,
+			delay_ = 0
+		},
+		["rbxassetid://10898113496"] = {
+			range = 25,
+			delay_ = 0.5
+		},
+		["rbxassetid://10914137175"] = {
+			range = 100,
+			delay_ = 3.5
+		},
+		["rbxassetid://9609253308"] = {
+			range = 75,
+			delay_ = 0.3
+		},
+		["rbxassetid://9621505270"] = {
+			range = 10,
+			delay_ = 0.25
+		},
+		["rbxassetid://10856153937"] = {
+			range = 5,
+			delay_ = 0
+		},
+		["rbxassetid://9716260471"] = {
+			range = 10,
+			delay_ = 0
+		},
+		["rbxassetid://9546943533"] = {
+			range = 15,
+			delay_ = 0.2
+		},
+		["rbxassetid://9417540929"] = {
+			range = 10,
+			delay_ = 0
+		},
+		["rbxassetid://9610452141"] = {
+			range = 15,
+			delay_ = 0
+		},
+		["rbxassetid://10525478325"] = {
+			range = 25,
+			delay_ = 0
+		},
+		["rbxassetid://10459967743"] = {
+			range = 25,
+			delay_ = 0
+		},
+		["rbxassetid://11928129691"] = {
+			range = 25,
+			delay_ = 0
+		},
+		["rbxassetid://10461031182"] = {
+			range = 10,
+			delay_ = 0
+		},
+		["rbxassetid://11867489139"] = {
+			range = 15,
+			delay_ = 0
+		},
+		["rbxassetid://11877731128"] = {
+			range = 10,
+			delay_ = 0
+		},
+		["rbxassetid://6892154163"] = {
+			range = 15,
+			delay_ = 0
+		},
+		["rbxassetid://11968585466"] = {
+			range = 150,
+			delay_ = 0.5
+		},
+	}
+}

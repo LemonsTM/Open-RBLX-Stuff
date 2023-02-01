@@ -104,5 +104,13 @@ local Skills = {
 			range = 15,
 			delay_ = 0.5
 		},
+		["rbxassetid://11104025155"] = {	-- Ancient Gorilla, Punch
+			range = 40,
+			delay_ = 0.05
+		},
+		["rbxassetid://11103276841"] = {	-- Ancient Gorilla, Roar
+			range = 250,
+			delay_ = 1
+		},
 	}
 return Skills

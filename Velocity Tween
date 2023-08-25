@@ -27,6 +27,8 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	local smallestDistanceToTarget = math.huge
 
 	local tasks = {}
+	local completedTasks = 0
+
 	for _, angle in ipairs(RAYCAST_ANGLES) do
 		local newTask = task.spawn(function()
 			local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
@@ -52,12 +54,14 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 					end
 				end
 			end
+
+			completedTasks = completedTasks + 1
 		end)
 		table.insert(tasks, newTask)
 	end
 
-	for _, t in ipairs(tasks) do
-		 task.wait()
+	while completedTasks < #RAYCAST_ANGLES do
+		task.wait()
 	end
 
 	return bestDirection

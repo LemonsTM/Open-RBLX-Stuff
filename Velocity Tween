@@ -8,65 +8,74 @@ local RAY_LENGTH = 50
 local NUM_RAYS = 16  -- number of rays to cast around in a circle
 
 function TeleportSystem.new()
-    local self = setmetatable({}, TeleportSystem)
-    self.targetPosition = Vector3.new()
-    self.connection = nil
-    self.onDestinationReached = Instance.new("BindableEvent")
-    return self
+	local self = setmetatable({}, TeleportSystem)
+	self.targetPosition = Vector3.new()
+	self.connection = nil
+	self.onDestinationReached = Instance.new("BindableEvent")
+	return self
 end
 
 function TeleportSystem:ChooseDirection(originalDirection)
-    local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-    local closestDirection = originalDirection
-    local smallestAngle = math.huge
+	local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+	local closestDirection = originalDirection
+	local smallestAngle = math.huge
 
-    for i = 1, NUM_RAYS do
-        local angle = (2 * math.pi / NUM_RAYS) * i
-        local testDirection = Vector3.new(originalDirection.X * math.cos(angle) - originalDirection.Z * math.sin(angle),
-                                          0,
-                                          originalDirection.X * math.sin(angle) + originalDirection.Z * math.cos(angle))
-        
-        local ray = Ray.new(humanoidRootPart.Position, testDirection * RAY_LENGTH)
-        local hit, _ = Workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
+	for i = 1, NUM_RAYS do
+		local angle = (2 * math.pi / NUM_RAYS) * i
+		local testDirection = Vector3.new(originalDirection.X * math.cos(angle) - originalDirection.Z * math.sin(angle),
+			0,
+			originalDirection.X * math.sin(angle) + originalDirection.Z * math.cos(angle))
 
-        if not hit then
-            local angleDifference = math.acos(originalDirection:Dot(testDirection))
-            if angleDifference < smallestAngle then
-                smallestAngle = angleDifference
-                closestDirection = testDirection
-            end
-        end
-    end
+		local ray = Ray.new(humanoidRootPart.Position, testDirection * RAY_LENGTH)
+		local hit, _ = Workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
 
-    return closestDirection
+		if not hit then
+			local angleDifference = math.acos(originalDirection:Dot(testDirection))
+			if angleDifference < smallestAngle then
+				smallestAngle = angleDifference
+				closestDirection = testDirection
+			end
+		end
+	end
+
+	return closestDirection
 end
 
 function TeleportSystem:TeleportTo(position, speed)
-    speed = speed or 25
+	speed = speed or 25
 
-    self.targetPosition = position
-    local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+	self.targetPosition = position
+	local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
 
-    local function onStep()
-        local direction = (self.targetPosition - humanoidRootPart.Position).Unit
-        
-        local ray = Ray.new(humanoidRootPart.Position, direction * RAY_LENGTH)
-        local hit, _ = Workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
+	local function onStep()
+		local direction = (self.targetPosition - humanoidRootPart.Position).Unit
 
-        if hit then
-            direction = self:ChooseDirection(direction)
-        end
+		local ray = Ray.new(humanoidRootPart.Position, direction * RAY_LENGTH)
+		local hit, _ = Workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
 
-        humanoidRootPart.Velocity = direction * speed
-        
-        if (humanoidRootPart.Position - self.targetPosition).Magnitude < 1 then
-            humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-            self.connection:Disconnect()
-            self.onDestinationReached:Fire()
-        end
-    end
+		if hit then
+			direction = self:ChooseDirection(direction)
+		end
 
-    self.connection = RunService.RenderStepped:Connect(onStep)
+		humanoidRootPart.Velocity = direction * speed
+
+		if (humanoidRootPart.Position - self.targetPosition).Magnitude < 1 then
+			humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+			self.connection:Disconnect()
+			self.onDestinationReached:Fire()
+		end
+	end
+
+	self.connection = RunService.RenderStepped:Connect(onStep)
+end
+
+function TeleportSystem:Cancel()
+	if self.connection then
+		self.connection:Disconnect()
+		self.connection = nil
+		local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+		humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+	end
 end
 
 return TeleportSystem

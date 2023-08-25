@@ -38,15 +38,15 @@ function TeleportSystem:ComputePath(startPos, endPos)
 	return nil
 end
 
-function TeleportSystem:MoveCharacterAlongPath(character, path, speed)
-	local waypoints = path:GetWaypoints()
-	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+function TeleportSystem:MoveCharacterAlongPath(path, speed, stayOnGround)
+	local character = game.Players.LocalPlayer.Character
+	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
 	local currentWaypointIndex = 1
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-		if currentWaypointIndex > #waypoints then
+		if currentWaypointIndex > #path then
 			self.isTeleporting = false
 			self.currentConnection:Disconnect()
 			self.currentConnection = nil
@@ -54,20 +54,22 @@ function TeleportSystem:MoveCharacterAlongPath(character, path, speed)
 			return
 		end
 
-		local waypoint = waypoints[currentWaypointIndex]
-		local direction = (waypoint.Position - humanoidRootPart.Position).Unit
+		local waypoint = path[currentWaypointIndex]
+		local targetPosition = waypoint.Position
+		if stayOnGround then
+			targetPosition = Vector3.new(targetPosition.X, humanoidRootPart.Position.Y, targetPosition.Z)
+		end
+
+		local direction = (targetPosition - humanoidRootPart.Position).Unit
 		humanoidRootPart.Velocity = direction * speed
 
-		if (humanoidRootPart.Position - waypoint.Position).Magnitude < 1 then
-			if waypoint.Action == Enum.PathWaypointAction.Jump then
-				character:FindFirstChildOfClass("Humanoid").Jump = true
-			end
+		if (humanoidRootPart.Position - targetPosition).Magnitude < 1 then
 			currentWaypointIndex = currentWaypointIndex + 1
 		end
 	end)
 end
 
-function TeleportSystem:FindBestPath(currentPosition, targetPosition)
+function TeleportSystem:FindBestPath(currentPosition, targetPosition, stayOnGround)
 	local direction = (targetPosition - currentPosition).Unit
 	local smallestDistanceToTarget = math.huge
 	local bestDirection = direction
@@ -86,11 +88,15 @@ function TeleportSystem:FindBestPath(currentPosition, targetPosition)
 		end
 	end
 
-	if bestDirection == direction then
-		local verticalRay = Ray.new(currentPosition, Vector3.new(0, HEIGHT_JUMP, 0))
-		local hit, _ = workspace:FindPartOnRay(verticalRay)
-		if not hit then
-			bestDirection = Vector3.new(0, HEIGHT_JUMP, 0).Unit
+	if stayOnGround then
+		bestDirection = Vector3.new(bestDirection.X, 0, bestDirection.Z).Unit
+	else
+		if bestDirection == direction then
+			local verticalRay = Ray.new(currentPosition, Vector3.new(0, HEIGHT_JUMP, 0))
+			local hit, _ = workspace:FindPartOnRay(verticalRay)
+			if not hit then
+				bestDirection = Vector3.new(0, HEIGHT_JUMP, 0).Unit
+			end
 		end
 	end
 
@@ -106,8 +112,8 @@ function TeleportSystem:FindNearestGroundPoint(position)
 	return nil
 end
 
-function TeleportSystem:TeleportTo(position, speed)
-	table.insert(self.queue, {position, speed})
+function TeleportSystem:TeleportTo(position, speed, stayOnGround)
+	table.insert(self.queue, {position, speed, stayOnGround})
 	if not self.isTeleporting then
 		self:ProcessQueue()
 	end
@@ -119,8 +125,9 @@ function TeleportSystem:ProcessQueue()
 	end
 
 	local data = table.remove(self.queue, 1)
-	local position, speed = unpack(data)
+	local position, speed, stayOnGround = unpack(data)
 	self.isTeleporting = true
+
 
 	local character = game.Players.LocalPlayer.Character
 	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")

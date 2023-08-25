@@ -1,11 +1,10 @@
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
-local RAYCAST_DISTANCE = 25
-local MAX_RETRIES = 3
+local RAYCAST_DISTANCE = 50
 local HEIGHT_JUMP = 10
-local wallFollowDistance = 3
-local wallFollowTimeLimit = 10
+local recentObstacles = {}
+local backtracking = false
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
@@ -18,41 +17,6 @@ function TeleportSystem.new()
 	return self
 end
 
-function TeleportSystem:StartWallFollowing(currentPosition, targetPosition)
-	local direction = (targetPosition - currentPosition).Unit
-	local leftRay = Ray.new(currentPosition, CFrame.fromEulerAnglesXYZ(0, math.rad(-30), 0) * direction * RAYCAST_DISTANCE)
-	local rightRay = Ray.new(currentPosition, CFrame.fromEulerAnglesXYZ(0, math.rad(30), 0) * direction * RAYCAST_DISTANCE)
-
-	local hitLeft = workspace:FindPartOnRay(leftRay)
-	local hitRight = workspace:FindPartOnRay(rightRay)
-
-	local followDirection = hitLeft and "left" or "right"
-
-	local startTime = tick()
-	local startFollowPosition = currentPosition
-
-	return function(humanoidRootPart, dt)
-		if tick() - startTime > wallFollowTimeLimit or (humanoidRootPart.Position - startFollowPosition).Magnitude < 2 then
-			return false
-		end
-
-		local sideOffset = (followDirection == "left") and math.rad(-90) or math.rad(90)
-		local sideDirection = CFrame.fromEulerAnglesXYZ(0, sideOffset, 0) * direction
-		local sideRay = Ray.new(humanoidRootPart.Position, sideDirection * wallFollowDistance * 2)
-		local hit, hitPosition = workspace:FindPartOnRay(sideRay)
-
-		if hit then
-			local distanceToWall = (hitPosition - humanoidRootPart.Position).Magnitude
-			local moveDirection = (wallFollowDistance - distanceToWall) * sideDirection
-			humanoidRootPart.Velocity = moveDirection
-		else
-			return false
-		end
-
-		return true
-	end
-end
-
 function TeleportSystem:FindBestPath(currentPosition, targetPosition)
 	local direction = (targetPosition - currentPosition).Unit
 	local ray = Ray.new(currentPosition, direction * RAYCAST_DISTANCE)
@@ -61,7 +25,55 @@ function TeleportSystem:FindBestPath(currentPosition, targetPosition)
 	if not hit then
 		return direction
 	else
-		return self:StartWallFollowing(currentPosition, targetPosition)
+		if recentObstacles[hit] then
+			recentObstacles[hit] = recentObstacles[hit] + 1
+		else
+			recentObstacles[hit] = 1
+		end
+
+		if recentObstacles[hit] > 3 then
+			backtracking = true
+		end
+
+		if backtracking then
+			return -direction
+		end
+
+		local obstacleOrientation = hit.Orientation
+		local adjustedAngles = {obstacleOrientation.X, obstacleOrientation.X + 45, obstacleOrientation.X - 45}
+
+		local bestDirection = nil
+		local smallestDistanceToTarget = math.huge
+
+		for _, angle in ipairs(adjustedAngles) do
+			local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * direction
+			local secondaryRay = Ray.new(currentPosition, newDirection * RAYCAST_DISTANCE)
+			local secondaryHit, secondaryHitPosition = workspace:FindPartOnRay(secondaryRay)
+
+			if not secondaryHit then
+				local distanceToTargetFromHit = (targetPosition - secondaryHitPosition).Magnitude
+				if distanceToTargetFromHit < smallestDistanceToTarget then
+					smallestDistanceToTarget = distanceToTargetFromHit
+					bestDirection = newDirection
+				end
+			end
+		end
+
+		if not bestDirection then
+			local verticalRayUp = Ray.new(currentPosition, Vector3.new(0, HEIGHT_JUMP, 0))
+			local hitUp = workspace:FindPartOnRay(verticalRayUp)
+
+			local verticalRayDown = Ray.new(currentPosition, Vector3.new(0, -HEIGHT_JUMP, 0))
+			local hitDown = workspace:FindPartOnRay(verticalRayDown)
+
+			if not hitUp then
+				bestDirection = Vector3.new(0, HEIGHT_JUMP, 0).Unit
+			elseif not hitDown then
+				bestDirection = Vector3.new(0, -HEIGHT_JUMP, 0).Unit
+			end
+		end
+
+		return bestDirection or direction
 	end
 end
 
@@ -85,22 +97,9 @@ function TeleportSystem:ProcessQueue()
 	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
-	local wallFollowingFunction = nil
-
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-		if not wallFollowingFunction then
-			local direction = self:FindBestPath(humanoidRootPart.Position, position)
-			if type(direction) == "function" then
-				wallFollowingFunction = direction
-			else
-				humanoidRootPart.Velocity = direction * speed
-			end
-		else
-			local continueWallFollowing = wallFollowingFunction(humanoidRootPart, dt)
-			if not continueWallFollowing then
-				wallFollowingFunction = nil
-			end
-		end
+		local direction = self:FindBestPath(humanoidRootPart.Position, position)
+		humanoidRootPart.Velocity = direction * speed
 
 		if (humanoidRootPart.Position - position).Magnitude < 1 then
 			self.isTeleporting = false

@@ -1,50 +1,48 @@
-local TeleportSystem = {}
-TeleportSystem.__index = TeleportSystem
-
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local RAY_LENGTH = 15
 
-local RAY_LENGTH = 50
-local NUM_RAYS = 16  -- number of rays to cast around in a circle
+local TeleportSystem = {}
+TeleportSystem.__index = TeleportSystem
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
 	self.targetPosition = Vector3.new()
 	self.connection = nil
+	self.queue = {}
 	self.onDestinationReached = Instance.new("BindableEvent")
 	return self
 end
 
-function TeleportSystem:ChooseDirection(originalDirection)
+function TeleportSystem:ChooseDirection(initialDirection)
 	local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-	local closestDirection = originalDirection
-	local smallestAngle = math.huge
+	local directions = {Vector3.new(1,0,0), Vector3.new(-1,0,0), Vector3.new(0,0,1), Vector3.new(0,0,-1)}
 
-	for i = 1, NUM_RAYS do
-		local angle = (2 * math.pi / NUM_RAYS) * i
-		local testDirection = Vector3.new(originalDirection.X * math.cos(angle) - originalDirection.Z * math.sin(angle),
-			0,
-			originalDirection.X * math.sin(angle) + originalDirection.Z * math.cos(angle))
-
-		local ray = Ray.new(humanoidRootPart.Position, testDirection * RAY_LENGTH)
+	for _, dir in ipairs(directions) do
+		local ray = Ray.new(humanoidRootPart.Position, dir * RAY_LENGTH)
 		local hit, _ = Workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
 
 		if not hit then
-			local angleDifference = math.acos(originalDirection:Dot(testDirection))
-			if angleDifference < smallestAngle then
-				smallestAngle = angleDifference
-				closestDirection = testDirection
-			end
+			return dir
 		end
 	end
 
-	return closestDirection
+	return initialDirection
 end
 
 function TeleportSystem:TeleportTo(position, speed)
-	speed = speed or 25
+	table.insert(self.queue, {position = position, speed = speed})
 
-	self.targetPosition = position
+	if #self.queue == 1 then
+		self:ProcessQueue()
+	end
+end
+
+function TeleportSystem:ProcessQueue()
+	if #self.queue == 0 then return end
+
+	local request = self.queue[1]
+	self.targetPosition = request.position
 	local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
 
 	local function onStep()
@@ -57,12 +55,18 @@ function TeleportSystem:TeleportTo(position, speed)
 			direction = self:ChooseDirection(direction)
 		end
 
-		humanoidRootPart.Velocity = direction * speed
+		humanoidRootPart.Velocity = direction * request.speed
 
 		if (humanoidRootPart.Position - self.targetPosition).Magnitude < 1 then
 			humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
 			self.connection:Disconnect()
+			self.connection = nil
+			table.remove(self.queue, 1)
 			self.onDestinationReached:Fire()
+
+			if #self.queue > 0 then
+				self:ProcessQueue()
+			end
 		end
 	end
 
@@ -75,6 +79,12 @@ function TeleportSystem:Cancel()
 		self.connection = nil
 		local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
 		humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+
+		table.remove(self.queue, 1)
+
+		if #self.queue > 0 then
+			self:ProcessQueue()
+		end
 	end
 end
 

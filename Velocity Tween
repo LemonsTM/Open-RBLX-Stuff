@@ -2,153 +2,117 @@ local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
 local RAYCAST_OFFSET = 1
-local MINIMUM_OBSTACLE_HEIGHT = 2
-local MAX_RAY_DISTANCE = 50
-local MIN_HEIGHT_FOR_JUMP = 6
-local MAX_HEIGHT_FOR_JUMP = 50
-local WAYPOINT_SIZE = Vector3.new(0.5, 0.5, 0.5)
-local WAYPOINT_COLOR = Color3.new(0, 1, 0)
+local RAYCAST_DISTANCE = 50
+local RAYCAST_ANGLES = {0, 45, -45, 90, -90}
+local CORNER_ESCAPE_ANGLES = {0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150}
+local MAX_RETRIES = 3
+local HEIGHT_JUMP = 10
+local MIN_DISTANCE_MOVED = 0.5  -- minimum distance character should move to avoid being flagged as "stuck"
 
 function TeleportSystem.new()
-	local self = setmetatable({}, TeleportSystem)
-	self.queue = {}
-	self.isTeleporting = false
-	self.currentConnection = nil
-	self.waypoints = {}
-	self.onDestinationReached = Instance.new("BindableEvent")
-	return self
+    local self = setmetatable({}, TeleportSystem)
+    self.queue = {}
+    self.isTeleporting = false
+    self.currentConnection = nil
+    self.onDestinationReached = Instance.new("BindableEvent")
+    self.retryCount = 0
+    self.lastPosition = Vector3.new()
+    return self
 end
 
-function TeleportSystem:CreateWaypoint(position)
-	local waypoint = Instance.new("Part")
-	waypoint.Size = WAYPOINT_SIZE
-	waypoint.Position = position
-	waypoint.Anchored = true
-	waypoint.CanCollide = false
-	waypoint.BrickColor = BrickColor.new(WAYPOINT_COLOR)
-	waypoint.Parent = workspace
-	table.insert(self.waypoints, waypoint)
-end
+function TeleportSystem:FindBestPath(currentPosition, targetPosition)
+    local direction = (targetPosition - currentPosition).Unit
+    local smallestDistanceToTarget = math.huge
+    local bestDirection = direction
 
-function TeleportSystem:ClearWaypoints()
-	for _, waypoint in ipairs(self.waypoints) do
-		waypoint:Destroy()
-	end
-	self.waypoints = {}
-end
+    local anglesToUse = self.retryCount > MAX_RETRIES and CORNER_ESCAPE_ANGLES or RAYCAST_ANGLES
 
-function TeleportSystem:CheckForObstacles(position, target)
-	local direction = (target - position).Unit
-	local ray = Ray.new(position, direction * (target - position).Magnitude)
-	local hit, hitPos = workspace:FindPartOnRay(ray)
+    for _, angle in ipairs(anglesToUse) do
+        local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * direction
+        local ray = Ray.new(currentPosition + Vector3.new(0, RAYCAST_OFFSET, 0), newDirection * RAYCAST_DISTANCE)
+        local hit, hitPosition = workspace:FindPartOnRay(ray)
 
-	if not hit then
-		return target
-	end
+        if hit then
+            local distanceToTargetFromHit = (targetPosition - hitPosition).Magnitude
+            if distanceToTargetFromHit < smallestDistanceToTarget then
+                smallestDistanceToTarget = distanceToTargetFromHit
+                bestDirection = newDirection
+            end
+        end
+    end
 
-	local obstacleHeight = hit.Size.Y
+    if bestDirection == direction then
+        local verticalRay = Ray.new(currentPosition, Vector3.new(0, HEIGHT_JUMP, 0))
+        local hit, _ = workspace:FindPartOnRay(verticalRay)
+        if not hit then
+            bestDirection = Vector3.new(0, HEIGHT_JUMP, 0).Unit
+        end
+    end
 
-	if obstacleHeight > MIN_HEIGHT_FOR_JUMP and obstacleHeight < MAX_HEIGHT_FOR_JUMP then
-		return Vector3.new(hitPos.X, hitPos.Y + obstacleHeight/2 + 1, hitPos.Z)
-	end
-
-	local possibleDirections = {}
-	local numberOfRays = 16
-	for i = 1, numberOfRays do
-		local angle = (2 * math.pi / numberOfRays) * i
-		local newDirection = direction:RotateY(angle)
-		local ray = Ray.new(position, newDirection * MAX_RAY_DISTANCE)
-		local hit, hitPos = workspace:FindPartOnRay(ray)
-		if hit then
-			table.insert(possibleDirections, { direction = newDirection, distance = (hitPos - position).Magnitude })
-		end
-	end
-
-	table.sort(possibleDirections, function(a, b)
-		return a.distance < b.distance
-	end)
-
-	if #possibleDirections > 0 then
-		return position + possibleDirections[1].direction * MAX_RAY_DISTANCE
-	end
-
-	return target
+    return bestDirection
 end
 
 function TeleportSystem:TeleportTo(position, speed, stayOnGround)
-	table.insert(self.queue, {position, speed, stayOnGround})
-	if not self.isTeleporting then
-		self:ProcessQueue()
-	end
+    table.insert(self.queue, {position, speed, stayOnGround})
+    if not self.isTeleporting then
+        self:ProcessQueue()
+    end
 end
 
 function TeleportSystem:ProcessQueue()
-	self:ClearWaypoints()
+    if #self.queue == 0 then
+        return
+    end
 
-	if #self.queue == 0 then
-		return
-	end
+    local data = table.remove(self.queue, 1)
+    local position, speed, stayOnGround = unpack(data)
+    self.isTeleporting = true
 
-	local data = table.remove(self.queue, 1)
-	local position, speed, stayOnGround = unpack(data)
-	self.isTeleporting = true
+    local character = game.Players.LocalPlayer.Character
+    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
 
-	local character = game.Players.LocalPlayer.Character
-	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-	if not humanoidRootPart then return end
+    local desiredEndPos = position
+    if stayOnGround then
+        desiredEndPos = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
+    end
 
-	local direction = (position - humanoidRootPart.Position).Unit
-	local desiredEndPos = position
-	if stayOnGround then
-		desiredEndPos = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
-	end
+    self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+        local currentPos = humanoidRootPart.Position
+        local distanceMoved = (self.lastPosition - currentPos).Magnitude
+        local distanceToTarget = (desiredEndPos - currentPos).Magnitude
+        local moveAmount = math.min(speed * dt, distanceToTarget)
 
-	local previousPosition = humanoidRootPart.Position
-
-	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-		local moveAmount = speed * dt
-		local currentPos = humanoidRootPart.Position
-		local distanceToTarget = (desiredEndPos - currentPos).Magnitude
-		moveAmount = math.min(moveAmount, distanceToTarget)
-
-		local nextPosition = humanoidRootPart.Position + direction * moveAmount
-
-		if distanceToTarget <= 1 then
-			self.isTeleporting = false
-			if self.currentConnection then
-				self.currentConnection:Disconnect()
-				self.currentConnection = nil
-			end
-			self.onDestinationReached:Fire()
-			self:ProcessQueue()
-		else
-			if (nextPosition - previousPosition).Magnitude < 0.1 then
-				local alternatePos = self:CheckForObstacles(nextPosition, desiredEndPos)
-				direction = (alternatePos - nextPosition).Unit
-				nextPosition = nextPosition + direction * moveAmount
-			else
-				nextPosition = nextPosition + direction * moveAmount
-				previousPosition = nextPosition
-			end
-
-			if stayOnGround then
-				nextPosition = Vector3.new(nextPosition.X, humanoidRootPart.Position.Y, nextPosition.Z)
-			end
-
-			self:CreateWaypoint(nextPosition)
-			humanoidRootPart.CFrame = CFrame.new(nextPosition)
-		end
-	end)
+        if distanceToTarget <= 1 then
+            self.isTeleporting = false
+            if self.currentConnection then
+                self.currentConnection:Disconnect()
+                self.currentConnection = nil
+            end
+            self.onDestinationReached:Fire()
+            self:ProcessQueue()
+            self.retryCount = 0
+            self.lastPosition = currentPos
+        else
+            if distanceMoved < MIN_DISTANCE_MOVED then
+                self.retryCount = self.retryCount + 1
+            else
+                self.retryCount = 0
+            end
+            self.lastPosition = currentPos
+            local moveDirection = self:FindBestPath(currentPos, desiredEndPos)
+            humanoidRootPart.CFrame = CFrame.new(currentPos + moveDirection * moveAmount)
+        end
+    end)
 end
 
 function TeleportSystem:Cancel()
-	if self.currentConnection then
-		self.currentConnection:Disconnect()
-		self.currentConnection = nil
-	end
-	self.isTeleporting = false
-	self.queue = {}
-	self:ClearWaypoints()
+    if self.currentConnection then
+        self.currentConnection:Disconnect()
+        self.currentConnection = nil
+    end
+    self.isTeleporting = false
+    self.queue = {}
 end
 
 return TeleportSystem

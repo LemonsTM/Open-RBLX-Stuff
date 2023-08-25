@@ -105,10 +105,13 @@ function TeleportSystem:ProcessQueue()
 			self.onDestinationReached:Fire()
 			self:ProcessQueue()
 		else
+			local moveAmount = speed * dt
 			if (nextPosition - previousPosition).Magnitude < 0.1 then
-				nextPosition = self:CheckForObstacles(nextPosition, desiredEndPos)
+				local alternatePos = self:CheckForObstacles(nextPosition, desiredEndPos)
+				direction = (alternatePos - nextPosition).Unit
+				nextPosition = nextPosition + direction * moveAmount
 			else
-				nextPosition = nextPosition + direction * speed * dt
+				nextPosition = nextPosition + direction * moveAmount
 				previousPosition = nextPosition
 			end
 

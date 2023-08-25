@@ -22,8 +22,13 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	local bestDirection = nil
 	local smallestDistanceToTarget = math.huge
 
+	local verticalRay = Ray.new(position, Vector3.new(0, HEIGHT_JUMP, 0))
+	local verticalHit = workspace:FindPartOnRay(verticalRay)
+	if not verticalHit then
+		return Vector3.new(0, HEIGHT_JUMP, 0).Unit
+	end
+
 	for _, angle in ipairs(RAYCAST_ANGLES) do
-		task.wait()
 		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
 		local ray = Ray.new(position, newDirection * RAYCAST_DISTANCE)
 		local hit, hitPosition = workspace:FindPartOnRay(ray)
@@ -36,9 +41,9 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 			end
 		else
 			if newDirection.Y > 0 then
-				local verticalRay = Ray.new(hitPosition, Vector3.new(0, HEIGHT_JUMP, 0))
-				local verticalHit = workspace:FindPartOnRay(verticalRay)
-				if not verticalHit then
+				local overheadRay = Ray.new(hitPosition, Vector3.new(0, HEIGHT_JUMP, 0))
+				local overheadHit = workspace:FindPartOnRay(overheadRay)
+				if not overheadHit then
 					local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
 					if distanceToTargetFromHit < smallestDistanceToTarget then
 						smallestDistanceToTarget = distanceToTargetFromHit

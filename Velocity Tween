@@ -1,6 +1,6 @@
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local RAY_LENGTH = 15
+local RAY_LENGTH = 50
 
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
@@ -10,6 +10,7 @@ function TeleportSystem.new()
 	self.targetPosition = Vector3.new()
 	self.connection = nil
 	self.queue = {}
+	self.stayOnGround = false
 	self.onDestinationReached = Instance.new("BindableEvent")
 	return self
 end
@@ -30,8 +31,15 @@ function TeleportSystem:ChooseDirection(initialDirection)
 	return initialDirection
 end
 
-function TeleportSystem:TeleportTo(position, speed)
-	table.insert(self.queue, {position = position, speed = speed})
+function TeleportSystem:TeleportTo(position, speed, stayOnGround)
+	stayOnGround = stayOnGround or false
+	local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+
+	if stayOnGround then
+		position = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
+	end
+
+	table.insert(self.queue, {position = position, speed = speed, stayOnGround = stayOnGround})
 
 	if #self.queue == 1 then
 		self:ProcessQueue()
@@ -43,16 +51,24 @@ function TeleportSystem:ProcessQueue()
 
 	local request = self.queue[1]
 	self.targetPosition = request.position
+	self.stayOnGround = request.stayOnGround
 	local humanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
 
 	local function onStep()
 		local direction = (self.targetPosition - humanoidRootPart.Position).Unit
+
+		if self.stayOnGround then
+			direction = Vector3.new(direction.X, 0, direction.Z).Unit
+		end
 
 		local ray = Ray.new(humanoidRootPart.Position, direction * RAY_LENGTH)
 		local hit, _ = Workspace:FindPartOnRay(ray, game.Players.LocalPlayer.Character)
 
 		if hit then
 			direction = self:ChooseDirection(direction)
+			if self.stayOnGround and direction.Y > 0 then
+				direction = Vector3.new(direction.X, 0, direction.Z).Unit
+			end
 		end
 
 		humanoidRootPart.Velocity = direction * request.speed

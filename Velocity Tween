@@ -94,10 +94,10 @@ function TeleportSystem:ProcessQueue()
 		local currentPos = humanoidRootPart.Position
 		local distanceMoved = (self.lastPosition - currentPos).Magnitude
 		local distanceToTarget = (desiredEndPos - currentPos).Magnitude
-		local moveAmount = math.min(speed * dt, distanceToTarget)
 
 		if distanceToTarget <= 1 then
 			self.isTeleporting = false
+			humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
 			if self.currentConnection then
 				self.currentConnection:Disconnect()
 				self.currentConnection = nil
@@ -108,14 +108,15 @@ function TeleportSystem:ProcessQueue()
 			self.lastPosition = currentPos
 		else
 			local steerDirection = self:SteerAwayFromObstacles(currentPos, direction)
-			humanoidRootPart.CFrame = CFrame.new(currentPos + steerDirection * moveAmount)
+
+			humanoidRootPart.Velocity = steerDirection * speed
 
 			if distanceMoved < MIN_DISTANCE_MOVED then
 				self.retryCount = self.retryCount + 1
 				if self.retryCount > MAX_RETRIES and #checkpoints > 0 then
 					local nextCheckpoint = table.remove(checkpoints, 1)
 					if nextCheckpoint then
-						humanoidRootPart.CFrame = CFrame.new(nextCheckpoint)
+						humanoidRootPart.Position = nextCheckpoint
 					end
 					self.retryCount = 0
 				end

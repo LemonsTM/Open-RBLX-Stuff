@@ -39,7 +39,7 @@ end
 
 function TeleportSystem:CheckForObstacles(position, target)
 	local direction = (target - position).Unit
-	local ray = Ray.new(position, direction * (target - position).Magnitude + RAYCAST_OFFSET)
+	local ray = Ray.new(position, direction * (target - position).Magnitude)
 	local hit, hitPos = workspace:FindPartOnRay(ray)
 
 	if not hit then
@@ -52,25 +52,24 @@ function TeleportSystem:CheckForObstacles(position, target)
 		return Vector3.new(hitPos.X, hitPos.Y + obstacleHeight/2 + 1, hitPos.Z)
 	end
 
-	local side1 = (direction + Vector3.new(0, 0, 1)).Unit
-	local side2 = (direction + Vector3.new(0, 0, -1)).Unit
-
-	local ray1 = Ray.new(position, side1 * MAX_RAY_DISTANCE)
-	local ray2 = Ray.new(position, side2 * MAX_RAY_DISTANCE)
-
-	local hit1, hitPos1 = workspace:FindPartOnRay(ray1)
-	local hit2, hitPos2 = workspace:FindPartOnRay(ray2)
-
-	if hit1 and hit2 then
-		if (hitPos1 - position).Magnitude > (hitPos2 - position).Magnitude then
-			return hitPos1
-		else
-			return hitPos2
+	local possibleDirections = {}
+	local numberOfRays = 16
+	for i = 1, numberOfRays do
+		local angle = (2 * math.pi / numberOfRays) * i
+		local newDirection = direction:RotateY(angle)
+		local ray = Ray.new(position, newDirection * MAX_RAY_DISTANCE)
+		local hit, hitPos = workspace:FindPartOnRay(ray)
+		if hit then
+			table.insert(possibleDirections, { direction = newDirection, distance = (hitPos - position).Magnitude })
 		end
-	elseif hit1 then
-		return hitPos1
-	elseif hit2 then
-		return hitPos2
+	end
+
+	table.sort(possibleDirections, function(a, b)
+		return a.distance < b.distance
+	end)
+
+	if #possibleDirections > 0 then
+		return position + possibleDirections[1].direction * MAX_RAY_DISTANCE
 	end
 
 	return target

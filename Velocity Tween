@@ -3,7 +3,9 @@ TeleportSystem.__index = TeleportSystem
 
 local RAYCAST_OFFSET = 1
 local MINIMUM_OBSTACLE_HEIGHT = 2
-local MAX_RAY_DISTANCE = 10
+local MAX_RAY_DISTANCE = 50
+local MIN_HEIGHT_FOR_JUMP = 6
+local MAX_HEIGHT_FOR_JUMP = 32
 local WAYPOINT_SIZE = Vector3.new(0.5, 0.5, 0.5)
 local WAYPOINT_COLOR = Color3.new(0, 1, 0)
 
@@ -38,8 +40,15 @@ end
 function TeleportSystem:CheckForObstacles(position, target)
 	local direction = (target - position).Unit
 	local ray = Ray.new(position, direction * (target - position).Magnitude)
-	local hit, _ = workspace:FindPartOnRayWithIgnoreList(ray, {workspace.CurrentCamera})
+	local hit, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, {workspace.CurrentCamera})
+
 	if hit then
+		local hitSizeY = hit.Size.Y
+
+		if hitSizeY > MIN_HEIGHT_FOR_JUMP and hitSizeY < MAX_HEIGHT_FOR_JUMP then
+			return Vector3.new(hitPos.X, hitPos.Y + hitSizeY/2 + 1, hitPos.Z)
+		end
+
 		local side1 = (direction + Vector3.new(0, 0, 1)).Unit
 		local side2 = (direction + Vector3.new(0, 0, -1)).Unit
 

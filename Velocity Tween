@@ -2,7 +2,7 @@ local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
 local RAYCAST_OFFSET = 1
-local RAYCAST_DISTANCE = 15
+local RAYCAST_DISTANCE = 3.5
 local RAYCAST_ANGLES = {-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90}
 local MAX_RETRIES = 3
 local HEIGHT_JUMP = 10

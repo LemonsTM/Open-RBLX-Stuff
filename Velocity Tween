@@ -3,6 +3,8 @@ TeleportSystem.__index = TeleportSystem
 
 local RAYCAST_OFFSET = 1
 local MINIMUM_OBSTACLE_HEIGHT = 2
+local WAYPOINT_SIZE = Vector3.new(0.5, 0.5, 0.5)
+local WAYPOINT_COLOR = Color3.new(0, 1, 0)
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
@@ -10,7 +12,26 @@ function TeleportSystem.new()
 	self.isTeleporting = false
 	self.currentConnection = nil
 	self.onDestinationReached = Instance.new("BindableEvent")
+	self.waypoints = {}  -- Initialize waypoints array
 	return self
+end
+
+function TeleportSystem:CreateWaypoint(position)
+	local waypoint = Instance.new("Part")
+	waypoint.Size = WAYPOINT_SIZE
+	waypoint.Position = position
+	waypoint.Anchored = true
+	waypoint.CanCollide = false
+	waypoint.BrickColor = BrickColor.new(WAYPOINT_COLOR)
+	waypoint.Parent = workspace
+	table.insert(self.waypoints, waypoint)
+end
+
+function TeleportSystem:ClearWaypoints()
+	for _, waypoint in ipairs(self.waypoints) do
+		waypoint:Destroy()
+	end
+	self.waypoints = {}
 end
 
 function TeleportSystem:TeleportTo(position, speed, stayOnGround)
@@ -21,6 +42,8 @@ function TeleportSystem:TeleportTo(position, speed, stayOnGround)
 end
 
 function TeleportSystem:ProcessQueue()
+	self:ClearWaypoints()
+
 	if #self.queue == 0 then
 		return
 	end
@@ -41,13 +64,19 @@ function TeleportSystem:ProcessQueue()
 
 	local rayStart = humanoidRootPart.Position + Vector3.new(0, RAYCAST_OFFSET, 0)
 	local ray = Ray.new(rayStart, direction * (humanoidRootPart.Position - desiredEndPos).Magnitude)
-	local hit, _ = workspace:FindPartOnRay(ray)
+	local hit, hitPos = workspace:FindPartOnRay(ray)
 
 	if hit and hit.Size.Y < MINIMUM_OBSTACLE_HEIGHT then
 		hit = nil
 	end
 
 	local moveDirection = hit and (hit.Position - humanoidRootPart.Position).Unit or direction
+
+	self:CreateWaypoint(humanoidRootPart.Position)
+	if hit then
+		self:CreateWaypoint(hitPos)
+	end
+	self:CreateWaypoint(desiredEndPos)
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
 		local currentPos = humanoidRootPart.Position

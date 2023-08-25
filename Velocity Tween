@@ -1,10 +1,9 @@
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
+local PathfindingService = game:GetService("PathfindingService")
 local RAYCAST_DISTANCE = 50
-local HEIGHT_JUMP = 10
-local recentObstacles = {}
-local backtracking = false
+local RAYCAST_ANGLES = {-45, -30, -15, 15, 30, 45}
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
@@ -17,64 +16,62 @@ function TeleportSystem.new()
 	return self
 end
 
-function TeleportSystem:FindBestPath(currentPosition, targetPosition)
-	local direction = (targetPosition - currentPosition).Unit
-	local ray = Ray.new(currentPosition, direction * RAYCAST_DISTANCE)
-	local hit, hitPosition = workspace:FindPartOnRay(ray)
+function TeleportSystem:ProbeAroundObstacle(position, targetPosition)
+	local bestDirection = nil
+	local smallestDistanceToTarget = math.huge
+	local probeDistances = {5, 10, 15, 20}
 
-	if not hit then
-		return direction
-	else
-		if recentObstacles[hit] then
-			recentObstacles[hit] = recentObstacles[hit] + 1
-		else
-			recentObstacles[hit] = 1
-		end
+	local verticalRay = Ray.new(position, Vector3.new(0, 50, 0))
+	local hit, hitPosition = workspace:FindPartOnRay(verticalRay)
+	if not hit or (hitPosition - position).Y < 50 then
+		return Vector3.new(0, 1, 0)
+	end
 
-		if recentObstacles[hit] > 3 then
-			backtracking = true
-		end
-
-		if backtracking then
-			return -direction
-		end
-
-		local obstacleOrientation = hit.Orientation
-		local adjustedAngles = {obstacleOrientation.X, obstacleOrientation.X + 45, obstacleOrientation.X - 45}
-
-		local bestDirection = nil
-		local smallestDistanceToTarget = math.huge
-
-		for _, angle in ipairs(adjustedAngles) do
+	for _, distance in ipairs(probeDistances) do
+		for _, angle in ipairs(RAYCAST_ANGLES) do
+			local direction = (targetPosition - position).Unit
 			local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * direction
-			local secondaryRay = Ray.new(currentPosition, newDirection * RAYCAST_DISTANCE)
-			local secondaryHit, secondaryHitPosition = workspace:FindPartOnRay(secondaryRay)
+			local ray = Ray.new(position, newDirection * distance)
+			local hit = workspace:FindPartOnRay(ray)
 
-			if not secondaryHit then
-				local distanceToTargetFromHit = (targetPosition - secondaryHitPosition).Magnitude
-				if distanceToTargetFromHit < smallestDistanceToTarget then
-					smallestDistanceToTarget = distanceToTargetFromHit
+			if not hit then
+				local probeEndPosition = position + newDirection * distance
+				local distanceToTarget = (targetPosition - probeEndPosition).Magnitude
+				if distanceToTarget < smallestDistanceToTarget then
+					smallestDistanceToTarget = distanceToTarget
 					bestDirection = newDirection
 				end
 			end
 		end
-
-		if not bestDirection then
-			local verticalRayUp = Ray.new(currentPosition, Vector3.new(0, HEIGHT_JUMP, 0))
-			local hitUp = workspace:FindPartOnRay(verticalRayUp)
-
-			local verticalRayDown = Ray.new(currentPosition, Vector3.new(0, -HEIGHT_JUMP, 0))
-			local hitDown = workspace:FindPartOnRay(verticalRayDown)
-
-			if not hitUp then
-				bestDirection = Vector3.new(0, HEIGHT_JUMP, 0).Unit
-			elseif not hitDown then
-				bestDirection = Vector3.new(0, -HEIGHT_JUMP, 0).Unit
-			end
-		end
-
-		return bestDirection or direction
 	end
+
+	return bestDirection
+end
+
+function TeleportSystem:CalculateDynamicPath(startPos, endPos)
+	local waypoints = {endPos}
+	local currentPosition = startPos
+
+	while (currentPosition - endPos).Magnitude > 1 do
+		local direction = (endPos - currentPosition).Unit
+		local ray = Ray.new(currentPosition, direction * RAYCAST_DISTANCE)
+		local hit, hitPosition = workspace:FindPartOnRay(ray)
+
+		if hit then
+			local bestDirection = self:ProbeAroundObstacle(hitPosition, endPos)
+			if bestDirection then
+				local newWaypoint = hitPosition + bestDirection * 5
+				table.insert(waypoints, 1, newWaypoint)
+				currentPosition = newWaypoint
+			else
+				break
+			end
+		else
+			currentPosition = currentPosition + direction * 5
+		end
+	end
+
+	return waypoints
 end
 
 function TeleportSystem:TeleportTo(position, speed)
@@ -97,15 +94,25 @@ function TeleportSystem:ProcessQueue()
 	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
-	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-		local direction = self:FindBestPath(humanoidRootPart.Position, position)
-		humanoidRootPart.Velocity = direction * speed
+	local waypoints = self:CalculateDynamicPath(humanoidRootPart.Position, position)
+	local currentWaypointIndex = 1
 
-		if (humanoidRootPart.Position - position).Magnitude < 1 then
+	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+		if currentWaypointIndex > #waypoints then
 			self.isTeleporting = false
 			self.currentConnection:Disconnect()
 			self.currentConnection = nil
 			self.onDestinationReached:Fire()
+			self:ProcessQueue()
+			return
+		end
+
+		local waypoint = waypoints[currentWaypointIndex]
+		local direction = (waypoint - humanoidRootPart.Position).Unit
+		humanoidRootPart.Velocity = direction * speed
+
+		if (humanoidRootPart.Position - waypoint).Magnitude < 1 then
+			currentWaypointIndex = currentWaypointIndex + 1
 		end
 	end)
 end

@@ -15,6 +15,7 @@ function TeleportSystem.new()
 	self.onDestinationReached = Instance.new("BindableEvent")
 	self.retryCount = 0
 	self.lastPosition = Vector3.new()
+	self.maxHeightAboveGround = 15
 	return self
 end
 
@@ -74,6 +75,16 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 				if stayOnGround and bestDirection.Y == 0 then
 					newWaypoint = Vector3.new(newWaypoint.X, currentPosition.Y, newWaypoint.Z)
 				end
+
+				local groundRay = Ray.new(newWaypoint, Vector3.new(0, -1, 0) * self.maxHeightAboveGround)
+				local groundHit, groundPosition = workspace:FindPartOnRay(groundRay)
+				if groundHit then
+					local heightAboveGround = newWaypoint.Y - groundPosition.Y
+					if heightAboveGround > self.maxHeightAboveGround then
+						newWaypoint = Vector3.new(newWaypoint.X, groundPosition.Y + self.maxHeightAboveGround, newWaypoint.Z)
+					end
+				end
+
 				table.insert(waypoints, 1, newWaypoint)
 				currentPosition = newWaypoint
 			else

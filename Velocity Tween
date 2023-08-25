@@ -57,7 +57,7 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	end
 
 	for _, t in ipairs(tasks) do
-		 task.yield()
+		 task.wait()
 	end
 
 	return bestDirection

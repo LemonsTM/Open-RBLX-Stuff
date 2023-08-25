@@ -48,7 +48,7 @@ function TeleportSystem:ProbeAroundObstacle(position, targetPosition)
 	return bestDirection
 end
 
-function TeleportSystem:CalculateDynamicPath(startPos, endPos)
+function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 	local waypoints = {endPos}
 	local currentPosition = startPos
 
@@ -62,6 +62,9 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos)
 			local bestDirection = self:ProbeAroundObstacle(hitPosition, endPos)
 			if bestDirection then
 				local newWaypoint = hitPosition + bestDirection * 5
+				if stayOnGround and bestDirection.Y == 0 then
+					newWaypoint = Vector3.new(newWaypoint.X, currentPosition.Y, newWaypoint.Z)
+				end
 				table.insert(waypoints, 1, newWaypoint)
 				currentPosition = newWaypoint
 			else
@@ -75,8 +78,8 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos)
 	return waypoints
 end
 
-function TeleportSystem:TeleportTo(position, speed)
-	table.insert(self.queue, {position, speed})
+function TeleportSystem:TeleportTo(position, speed, stayOnGround)
+	table.insert(self.queue, {position, speed, stayOnGround})
 	if not self.isTeleporting then
 		self:ProcessQueue()
 	end
@@ -88,14 +91,14 @@ function TeleportSystem:ProcessQueue()
 	end
 
 	local data = table.remove(self.queue, 1)
-	local position, speed = unpack(data)
+	local position, speed, stayOnGround = unpack(data)
 	self.isTeleporting = true
 
 	local character = game.Players.LocalPlayer.Character
 	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
-	local waypoints = self:CalculateDynamicPath(humanoidRootPart.Position, position)
+	local waypoints = self:CalculateDynamicPath(humanoidRootPart.Position, position, stayOnGround)
 	local currentWaypointIndex = 1
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
@@ -110,6 +113,12 @@ function TeleportSystem:ProcessQueue()
 
 		local waypoint = waypoints[currentWaypointIndex]
 		local direction = (waypoint - humanoidRootPart.Position).Unit
+
+		if math.abs(waypoint.X - humanoidRootPart.Position.X) < 1 and math.abs(waypoint.Z - humanoidRootPart.Position.Z) < 1 then
+			currentWaypointIndex = currentWaypointIndex + 1
+			return
+		end
+
 		humanoidRootPart.Velocity = direction * speed
 
 		if (humanoidRootPart.Position - waypoint).Magnitude < 1 then

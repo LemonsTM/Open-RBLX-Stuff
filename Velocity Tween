@@ -109,8 +109,11 @@ function TeleportSystem:ProcessQueue()
 		else
 			local steerDirection = self:SteerAwayFromObstacles(currentPos, direction)
 
-			humanoidRootPart.Velocity = steerDirection * speed
-
+			for _, part in pairs(character:GetChildren()) do
+				if part:IsA("BasePart") then
+					part.Velocity = steerDirection * speed
+				end
+			end
 			if distanceMoved < MIN_DISTANCE_MOVED then
 				self.retryCount = self.retryCount + 1
 				if self.retryCount > MAX_RETRIES and #checkpoints > 0 then

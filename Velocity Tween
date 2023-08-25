@@ -128,19 +128,31 @@ function TeleportSystem:ProcessQueue()
 
 	local path = self:ComputePath(humanoidRootPart.Position, position)
 	if path then
+		print("Using Pathfinding Service")
 		self:MoveCharacterAlongPath(character, path, speed)
 	else
-		local raycastDirection = self:FindBestPath(humanoidRootPart.Position, position)
-		if raycastDirection then
-			humanoidRootPart.Velocity = raycastDirection * speed
-		else
-			local groundPoint = self:FindNearestGroundPoint(position)
-			if groundPoint then
-				self:TeleportTo(groundPoint, speed)
+		print("Using Raycast-Based Fallback")
+		self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+			local raycastDirection = self:FindBestPath(humanoidRootPart.Position, position)
+			if raycastDirection then
+				humanoidRootPart.Velocity = raycastDirection * speed
+				if (humanoidRootPart.Position - position).Magnitude < 1 then
+					self.isTeleporting = false
+					self.currentConnection:Disconnect()
+					self.currentConnection = nil
+					self.onDestinationReached:Fire()
+				end
 			else
-				self.isTeleporting = false
+				local groundPoint = self:FindNearestGroundPoint(position)
+				if groundPoint then
+					print("Using Nearest Ground Point Fallback")
+					self:TeleportTo(groundPoint, speed)
+				else
+					print("All methods failed, stopping teleportation")
+					self.isTeleporting = false
+				end
 			end
-		end
+		end)
 	end
 end
 

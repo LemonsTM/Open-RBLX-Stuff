@@ -19,7 +19,7 @@ function TeleportSystem.new()
 	self.maxHeightAboveGround = 15
 	self.targetWaypoint = nil
 	self.currentSpeed = 0
-	self.visualizationParts = {}
+	self.visualizationBeams = {}
 	return self
 end
 
@@ -65,10 +65,10 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 end
 
 function TeleportSystem:ClearVisualization()
-	for _, part in ipairs(self.visualizationParts) do
-		part:Destroy()
+	for _, beam in ipairs(self.visualizationBeams) do
+		beam:Destroy()
 	end
-	self.visualizationParts = {}
+	self.visualizationBeams = {}
 end
 
 function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
@@ -102,14 +102,16 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 
 				table.insert(waypoints, 1, newWaypoint)
 				currentPosition = newWaypoint
-				local part = Instance.new("Part")
-				part.Size = Vector3.new(1, 1, 1)
-				part.Position = currentPosition
-				part.Anchored = true
-				part.BrickColor = BrickColor.new("Bright blue")
-				part.CanCollide = false
-				part.Parent = workspace
-				table.insert(self.visualizationParts, part)
+				if #waypoints > 1 then
+					local beam = Instance.new("Beam")
+					beam.FaceCamera = true
+					beam.Width0 = 0.5
+					beam.Width1 = 0.5
+					beam.Color = ColorSequence.new(Color3.new(0, 0, 1))
+					beam.Attachment0 = self:CreateAttachment(currentPosition)
+					beam.Attachment1 = self:CreateAttachment(waypoints[#waypoints - 1])
+					beam.Parent = workspace
+					table.insert(self.visualizationBeams, beam)
 			else
 				break
 			end
@@ -119,6 +121,13 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 	end
 
 	return waypoints
+end
+
+function TeleportSystem:CreateAttachment(position)
+	local attachment = Instance.new("Attachment")
+	attachment.Position = position
+	attachment.Parent = workspace.Terrain 
+	return attachment
 end
 
 function TeleportSystem:TeleportTo(position, speed, stayOnGround)

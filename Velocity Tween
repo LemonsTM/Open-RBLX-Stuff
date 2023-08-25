@@ -1,9 +1,11 @@
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
-local PathfindingService = game:GetService("PathfindingService")
+local RAYCAST_OFFSET = 1
 local RAYCAST_DISTANCE = 50
-local RAYCAST_ANGLES = {-45, -30, -15, 15, 30, 45}
+local RAYCAST_ANGLES = {0, 45, -45, 90, -90, 135, -135, 180, -180}
+local MAX_RETRIES = 3
+local HEIGHT_JUMP = 10
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
@@ -16,30 +18,31 @@ function TeleportSystem.new()
 	return self
 end
 
-function TeleportSystem:ProbeAroundObstacle(position, targetPosition)
+function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	local bestDirection = nil
 	local smallestDistanceToTarget = math.huge
-	local probeDistances = {5, 10, 15, 20}
 
-	local verticalRay = Ray.new(position, Vector3.new(0, 50, 0))
-	local hit, hitPosition = workspace:FindPartOnRay(verticalRay)
-	if not hit or (hitPosition - position).Y < 50 then
-		return Vector3.new(0, 1, 0)
-	end
+	for _, angle in ipairs(RAYCAST_ANGLES) do
+		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
+		local ray = Ray.new(position, newDirection * RAYCAST_DISTANCE)
+		local hit, hitPosition = workspace:FindPartOnRay(ray)
 
-	for _, distance in ipairs(probeDistances) do
-		for _, angle in ipairs(RAYCAST_ANGLES) do
-			local direction = (targetPosition - position).Unit
-			local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * direction
-			local ray = Ray.new(position, newDirection * distance)
-			local hit = workspace:FindPartOnRay(ray)
-
-			if not hit then
-				local probeEndPosition = position + newDirection * distance
-				local distanceToTarget = (targetPosition - probeEndPosition).Magnitude
-				if distanceToTarget < smallestDistanceToTarget then
-					smallestDistanceToTarget = distanceToTarget
-					bestDirection = newDirection
+		if not hit then
+			local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
+			if distanceToTargetFromHit < smallestDistanceToTarget then
+				smallestDistanceToTarget = distanceToTargetFromHit
+				bestDirection = newDirection
+			end
+		else
+			if newDirection.Y > 0 then
+				local verticalRay = Ray.new(hitPosition, Vector3.new(0, HEIGHT_JUMP, 0))
+				local verticalHit = workspace:FindPartOnRay(verticalRay)
+				if not verticalHit then
+					local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
+					if distanceToTargetFromHit < smallestDistanceToTarget then
+						smallestDistanceToTarget = distanceToTargetFromHit
+						bestDirection = newDirection
+					end
 				end
 			end
 		end
@@ -53,7 +56,6 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 	local currentPosition = startPos
 
 	while (currentPosition - endPos).Magnitude > 1 do
-		task.wait()
 		local direction = (endPos - currentPosition).Unit
 		local ray = Ray.new(currentPosition, direction * RAYCAST_DISTANCE)
 		local hit, hitPosition = workspace:FindPartOnRay(ray)

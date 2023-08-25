@@ -1,13 +1,13 @@
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
+local PathfindingService = game:GetService("PathfindingService")
+
 local RAYCAST_OFFSET = 1
-local RAYCAST_DISTANCE = 3.5
-local RAYCAST_ANGLES = {-90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90}
+local RAYCAST_DISTANCE = 50
+local RAYCAST_ANGLES = {0, 45, -45, 90, -90}
 local MAX_RETRIES = 3
 local HEIGHT_JUMP = 10
-local MIN_DISTANCE_MOVED = 0.5
-local SAFETY_CHECKPOINT_DISTANCE = 5
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
@@ -18,6 +18,53 @@ function TeleportSystem.new()
 	self.retryCount = 0
 	self.lastPosition = Vector3.new()
 	return self
+end
+
+function TeleportSystem:ComputePath(startPos, endPos)
+	local path = PathfindingService:CreatePath({
+		AgentRadius = 2,
+		AgentHeight = 5,
+		AgentCanJump = true,
+		AgentJumpHeight = 10,
+		AgentMaxSlope = 45,
+	})
+
+	path:ComputeAsync(startPos, endPos)
+
+	if path.Status == Enum.PathStatus.Success then
+		return path
+	end
+
+	return nil
+end
+
+function TeleportSystem:MoveCharacterAlongPath(character, path, speed)
+	local waypoints = path:GetWaypoints()
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return end
+
+	local currentWaypointIndex = 1
+
+	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+		if currentWaypointIndex > #waypoints then
+			self.isTeleporting = false
+			self.currentConnection:Disconnect()
+			self.currentConnection = nil
+			self.onDestinationReached:Fire()
+			return
+		end
+
+		local waypoint = waypoints[currentWaypointIndex]
+		local direction = (waypoint.Position - humanoidRootPart.Position).Unit
+		humanoidRootPart.Velocity = direction * speed
+
+		if (humanoidRootPart.Position - waypoint.Position).Magnitude < 1 then
+			if waypoint.Action == Enum.PathWaypointAction.Jump then
+				character:FindFirstChildOfClass("Humanoid").Jump = true
+			end
+			currentWaypointIndex = currentWaypointIndex + 1
+		end
+	end)
 end
 
 function TeleportSystem:FindBestPath(currentPosition, targetPosition)
@@ -50,76 +97,50 @@ function TeleportSystem:FindBestPath(currentPosition, targetPosition)
 	return bestDirection
 end
 
-function TeleportSystem:SteerAwayFromObstacles(currentPosition, desiredDirection)
-	local avoidanceVector = Vector3.new()
-	for _, angle in ipairs(RAYCAST_ANGLES) do
-		local rayDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * desiredDirection
-		local ray = Ray.new(currentPosition + Vector3.new(0, RAYCAST_OFFSET, 0), rayDirection * RAYCAST_DISTANCE)
-		local hit, _ = workspace:FindPartOnRay(ray)
-		if hit then
-			avoidanceVector = avoidanceVector - rayDirection
-		end
+function TeleportSystem:FindNearestGroundPoint(position)
+	local ray = Ray.new(position, Vector3.new(0, -1000, 0))
+	local hit, hitPosition = workspace:FindPartOnRay(ray)
+	if hit then
+		return hitPosition
 	end
-	return (desiredDirection + avoidanceVector).Unit
+	return nil
+end
+
+function TeleportSystem:TeleportTo(position, speed)
+	table.insert(self.queue, {position, speed})
+	if not self.isTeleporting then
+		self:ProcessQueue()
+	end
 end
 
 function TeleportSystem:ProcessQueue()
-    if #self.queue == 0 then
-        return
-    end
+	if #self.queue == 0 then
+		return
+	end
 
-    local data = table.remove(self.queue, 1)
-    local position, speed, stayOnGround = unpack(data)
-    self.isTeleporting = true
+	local data = table.remove(self.queue, 1)
+	local position, speed = unpack(data)
+	self.isTeleporting = true
 
-    local character = game.Players.LocalPlayer.Character
-    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
+	local character = game.Players.LocalPlayer.Character
+	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return end
 
-    local desiredEndPos = position
-    if stayOnGround then
-        desiredEndPos = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
-    end
-
-    local direction = (desiredEndPos - humanoidRootPart.Position).Unit
-    local currentVelocity = Vector3.new(0, 0, 0)
-    local acceleration = speed * 2
-
-    self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-        local currentPos = humanoidRootPart.Position
-        local distanceToTarget = (desiredEndPos - currentPos).Magnitude
-
-        local newDirection = self:SteerAwayFromObstacles(currentPos, direction).Unit
-        direction = direction:Lerp(newDirection, 0.1)  -- Smooth the transition between directions
-
-        local adjustedAcceleration = math.min(acceleration, acceleration * (distanceToTarget / 100))
-
-        local desiredVelocity = direction * speed
-        currentVelocity = currentVelocity + direction * adjustedAcceleration * dt
-        if currentVelocity.Magnitude > desiredVelocity.Magnitude then
-            currentVelocity = desiredVelocity
-        end
-        humanoidRootPart.Velocity = currentVelocity
-
-        if distanceToTarget <= 1 then
-            self.isTeleporting = false
-            humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-            if self.currentConnection then
-                self.currentConnection:Disconnect()
-                self.currentConnection = nil
-            end
-            self.onDestinationReached:Fire()
-            self:ProcessQueue()
-            self.retryCount = 0
-            self.lastPosition = currentPos
-        end
-    end)
-end
-
-function TeleportSystem:TeleportTo(position, speed, stayOnGround)
-	table.insert(self.queue, {position, speed, stayOnGround})
-	if not self.isTeleporting then
-		self:ProcessQueue()
+	local path = self:ComputePath(humanoidRootPart.Position, position)
+	if path then
+		self:MoveCharacterAlongPath(character, path, speed)
+	else
+		local raycastDirection = self:FindBestPath(humanoidRootPart.Position, position)
+		if raycastDirection then
+			humanoidRootPart.Velocity = raycastDirection * speed
+		else
+			local groundPoint = self:FindNearestGroundPoint(position)
+			if groundPoint then
+				self:TeleportTo(groundPoint, speed)
+			else
+				self.isTeleporting = false
+			end
+		end
 	end
 end
 

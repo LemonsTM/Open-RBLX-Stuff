@@ -53,6 +53,7 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos)
 	local currentPosition = startPos
 
 	while (currentPosition - endPos).Magnitude > 1 do
+		task.wait()
 		local direction = (endPos - currentPosition).Unit
 		local ray = Ray.new(currentPosition, direction * RAYCAST_DISTANCE)
 		local hit, hitPosition = workspace:FindPartOnRay(ray)

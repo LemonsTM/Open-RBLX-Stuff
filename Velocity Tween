@@ -79,24 +79,30 @@ function TeleportSystem:ProcessQueue()
 	end
 
 	local data = table.remove(self.queue, 1)
-	local targetPosition, speed, stayOnGround = unpack(data)
+	local position, speed, stayOnGround = unpack(data)
 	self.isTeleporting = true
 
 	local character = game.Players.LocalPlayer.Character
 	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then return end
 
-	local direction = (targetPosition - humanoidRootPart.Position).Unit
-	local desiredEndPos = targetPosition
+	local direction = (position - humanoidRootPart.Position).Unit
+	local desiredEndPos = position
 	if stayOnGround then
-		desiredEndPos = Vector3.new(targetPosition.X, humanoidRootPart.Position.Y, targetPosition.Z)
+		desiredEndPos = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
 	end
 
-	local nextPosition = humanoidRootPart.Position
-	local previousPosition = nextPosition
+	local previousPosition = humanoidRootPart.Position
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-		if (nextPosition - desiredEndPos).Magnitude <= 1 then
+		local moveAmount = speed * dt
+		local currentPos = humanoidRootPart.Position
+		local distanceToTarget = (desiredEndPos - currentPos).Magnitude
+		moveAmount = math.min(moveAmount, distanceToTarget)
+
+		local nextPosition = humanoidRootPart.Position + direction * moveAmount
+
+		if distanceToTarget <= 1 then
 			self.isTeleporting = false
 			if self.currentConnection then
 				self.currentConnection:Disconnect()
@@ -105,7 +111,6 @@ function TeleportSystem:ProcessQueue()
 			self.onDestinationReached:Fire()
 			self:ProcessQueue()
 		else
-			local moveAmount = speed * dt
 			if (nextPosition - previousPosition).Magnitude < 0.1 then
 				local alternatePos = self:CheckForObstacles(nextPosition, desiredEndPos)
 				direction = (alternatePos - nextPosition).Unit
@@ -113,6 +118,10 @@ function TeleportSystem:ProcessQueue()
 			else
 				nextPosition = nextPosition + direction * moveAmount
 				previousPosition = nextPosition
+			end
+
+			if stayOnGround then
+				nextPosition = Vector3.new(nextPosition.X, humanoidRootPart.Position.Y, nextPosition.Z)
 			end
 
 			self:CreateWaypoint(nextPosition)

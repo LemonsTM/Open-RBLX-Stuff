@@ -23,6 +23,7 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	local smallestDistanceToTarget = math.huge
 
 	for _, angle in ipairs(RAYCAST_ANGLES) do
+		task.wait()
 		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
 		local ray = Ray.new(position, newDirection * RAYCAST_DISTANCE)
 		local hit, hitPosition = workspace:FindPartOnRay(ray)
@@ -105,6 +106,7 @@ function TeleportSystem:ProcessQueue()
 	local currentWaypointIndex = 1
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+		task.wait()
 		if currentWaypointIndex > #waypoints then
 			self.isTeleporting = false
 			self.currentConnection:Disconnect()

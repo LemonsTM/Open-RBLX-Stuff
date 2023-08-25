@@ -64,53 +64,56 @@ function TeleportSystem:SteerAwayFromObstacles(currentPosition, desiredDirection
 end
 
 function TeleportSystem:ProcessQueue()
-	if #self.queue == 0 then
-		return
-	end
+    if #self.queue == 0 then
+        return
+    end
 
-	local data = table.remove(self.queue, 1)
-	local position, speed, stayOnGround = unpack(data)
-	self.isTeleporting = true
+    local data = table.remove(self.queue, 1)
+    local position, speed, stayOnGround = unpack(data)
+    self.isTeleporting = true
 
-	local character = game.Players.LocalPlayer.Character
-	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-	if not humanoidRootPart then return end
+    local character = game.Players.LocalPlayer.Character
+    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
 
-	local desiredEndPos = position
-	if stayOnGround then
-		desiredEndPos = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
-	end
+    local desiredEndPos = position
+    if stayOnGround then
+        desiredEndPos = Vector3.new(position.X, humanoidRootPart.Position.Y, position.Z)
+    end
 
-	local direction = (desiredEndPos - humanoidRootPart.Position).Unit
-	local currentVelocity = Vector3.new(0, 0, 0)
-	local acceleration = speed * 2
+    local direction = (desiredEndPos - humanoidRootPart.Position).Unit
+    local currentVelocity = Vector3.new(0, 0, 0)
+    local acceleration = speed * 2
 
-	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
-		local currentPos = humanoidRootPart.Position
-		local distanceToTarget = (desiredEndPos - currentPos).Magnitude
+    self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+        local currentPos = humanoidRootPart.Position
+        local distanceToTarget = (desiredEndPos - currentPos).Magnitude
 
-		local steerDirection = self:SteerAwayFromObstacles(currentPos, direction).Unit
+        local newDirection = self:SteerAwayFromObstacles(currentPos, direction).Unit
+        direction = direction:Lerp(newDirection, 0.1)  -- Smooth the transition between directions
 
-		local desiredVelocity = steerDirection * speed
-		currentVelocity = currentVelocity + steerDirection * acceleration * dt
-		if currentVelocity.Magnitude > desiredVelocity.Magnitude then
-			currentVelocity = desiredVelocity
-		end
-		humanoidRootPart.Velocity = currentVelocity
+        local adjustedAcceleration = math.min(acceleration, acceleration * (distanceToTarget / 100))
 
-		if distanceToTarget <= 1 then
-			self.isTeleporting = false
-			humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-			if self.currentConnection then
-				self.currentConnection:Disconnect()
-				self.currentConnection = nil
-			end
-			self.onDestinationReached:Fire()
-			self:ProcessQueue()
-			self.retryCount = 0
-			self.lastPosition = currentPos
-		end
-	end)
+        local desiredVelocity = direction * speed
+        currentVelocity = currentVelocity + direction * adjustedAcceleration * dt
+        if currentVelocity.Magnitude > desiredVelocity.Magnitude then
+            currentVelocity = desiredVelocity
+        end
+        humanoidRootPart.Velocity = currentVelocity
+
+        if distanceToTarget <= 1 then
+            self.isTeleporting = false
+            humanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+            if self.currentConnection then
+                self.currentConnection:Disconnect()
+                self.currentConnection = nil
+            end
+            self.onDestinationReached:Fire()
+            self:ProcessQueue()
+            self.retryCount = 0
+            self.lastPosition = currentPos
+        end
+    end)
 end
 
 function TeleportSystem:TeleportTo(position, speed, stayOnGround)

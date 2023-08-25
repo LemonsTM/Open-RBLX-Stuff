@@ -5,14 +5,16 @@ local RAYCAST_OFFSET = 1
 local MINIMUM_OBSTACLE_HEIGHT = 2
 local WAYPOINT_SIZE = Vector3.new(0.5, 0.5, 0.5)
 local WAYPOINT_COLOR = Color3.new(0, 1, 0)
+local RAY_SPREAD_COUNT = 5
+local RAY_SPREAD_ANGLE = math.rad(10)
 
 function TeleportSystem.new()
 	local self = setmetatable({}, TeleportSystem)
 	self.queue = {}
 	self.isTeleporting = false
 	self.currentConnection = nil
+	self.waypoints = {}
 	self.onDestinationReached = Instance.new("BindableEvent")
-	self.waypoints = {}  -- Initialize waypoints array
 	return self
 end
 
@@ -32,6 +34,32 @@ function TeleportSystem:ClearWaypoints()
 		waypoint:Destroy()
 	end
 	self.waypoints = {}
+end
+
+local function findHorizontalPath(start, direction, maxDistance)
+	for i = 1, RAY_SPREAD_COUNT do
+		for _, angle in ipairs({RAY_SPREAD_ANGLE * i, -RAY_SPREAD_ANGLE * i}) do
+			local rotatedDirection = CFrame.new(start, start + direction) * CFrame.Angles(0, angle, 0) * Vector3.new(0, 0, maxDistance)
+			local ray = Ray.new(start, rotatedDirection)
+			local hit, hitPos = workspace:FindPartOnRay(ray)
+
+			if not hit or hit.Size.Y < MINIMUM_OBSTACLE_HEIGHT then
+				return hitPos or (start + rotatedDirection)
+			end
+		end
+	end
+	return nil
+end
+
+local function findVerticalPath(start, maxDistanceUpward)
+	local upwardDirection = Vector3.new(0, maxDistanceUpward, 0)
+	local ray = Ray.new(start, upwardDirection)
+	local hit, hitPos = workspace:FindPartOnRay(ray)
+
+	if not hit or hit.Size.Y < MINIMUM_OBSTACLE_HEIGHT then
+		return hitPos or (start + upwardDirection)
+	end
+	return nil
 end
 
 function TeleportSystem:TeleportTo(position, speed, stayOnGround)
@@ -63,19 +91,21 @@ function TeleportSystem:ProcessQueue()
 	end
 
 	local rayStart = humanoidRootPart.Position + Vector3.new(0, RAYCAST_OFFSET, 0)
-	local ray = Ray.new(rayStart, direction * (humanoidRootPart.Position - desiredEndPos).Magnitude)
-	local hit, hitPos = workspace:FindPartOnRay(ray)
+	local hit, hitPos = workspace:FindPartOnRay(Ray.new(rayStart, direction * (humanoidRootPart.Position - desiredEndPos).Magnitude))
 
-	if hit and hit.Size.Y < MINIMUM_OBSTACLE_HEIGHT then
-		hit = nil
+	if hit and hit.Size.Y >= MINIMUM_OBSTACLE_HEIGHT then
+		local horizontalPath = findHorizontalPath(rayStart, direction, (humanoidRootPart.Position - desiredEndPos).Magnitude)
+		if horizontalPath then
+			direction = (horizontalPath - humanoidRootPart.Position).Unit
+		else
+			local verticalPath = findVerticalPath(rayStart, 50)
+			if verticalPath then
+				direction = (verticalPath - humanoidRootPart.Position).Unit
+			end
+		end
 	end
-
-	local moveDirection = hit and (hit.Position - humanoidRootPart.Position).Unit or direction
 
 	self:CreateWaypoint(humanoidRootPart.Position)
-	if hit then
-		self:CreateWaypoint(hitPos)
-	end
 	self:CreateWaypoint(desiredEndPos)
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
@@ -92,7 +122,7 @@ function TeleportSystem:ProcessQueue()
 			self.onDestinationReached:Fire()
 			self:ProcessQueue()
 		else
-			humanoidRootPart.CFrame = CFrame.new(currentPos + moveDirection * moveAmount)
+			humanoidRootPart.CFrame = CFrame.new(currentPos + direction * moveAmount)
 		end
 	end)
 end

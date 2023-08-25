@@ -102,19 +102,19 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 
 				table.insert(waypoints, 1, newWaypoint)
 				currentPosition = newWaypoint
+				local part = Instance.new("Part")
+				part.Size = Vector3.new(1, 1, 1)
+				part.Position = currentPosition
+				part.Anchored = true
+				part.BrickColor = BrickColor.new("Bright blue")
+				part.CanCollide = false
+				part.Parent = workspace
+				table.insert(self.visualizationParts, part)
 			else
 				break
 			end
 		else
 			currentPosition = currentPosition + direction * 5
-			local part = Instance.new("Part")
-			part.Size = Vector3.new(1, 1, 1)
-			part.Position = currentPosition
-			part.Anchored = true
-			part.BrickColor = BrickColor.new("Bright blue")
-			part.CanCollide = false
-			part.Parent = workspace
-			table.insert(self.visualizationParts, part)
 		end
 	end
 

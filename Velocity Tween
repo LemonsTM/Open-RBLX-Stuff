@@ -82,18 +82,21 @@ function TeleportSystem:ProcessQueue()
 	end
 
 	local direction = (desiredEndPos - humanoidRootPart.Position).Unit
-
-	local checkpoints = {}
-	local currentCheckpoint = humanoidRootPart.Position
-	while (currentCheckpoint - desiredEndPos).Magnitude > SAFETY_CHECKPOINT_DISTANCE do
-		currentCheckpoint = currentCheckpoint + direction * SAFETY_CHECKPOINT_DISTANCE
-		table.insert(checkpoints, currentCheckpoint)
-	end
+	local currentVelocity = Vector3.new(0, 0, 0)
+	local acceleration = speed * 2
 
 	self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
 		local currentPos = humanoidRootPart.Position
-		local distanceMoved = (self.lastPosition - currentPos).Magnitude
 		local distanceToTarget = (desiredEndPos - currentPos).Magnitude
+
+		local steerDirection = self:SteerAwayFromObstacles(currentPos, direction).Unit
+
+		local desiredVelocity = steerDirection * speed
+		currentVelocity = currentVelocity + steerDirection * acceleration * dt
+		if currentVelocity.Magnitude > desiredVelocity.Magnitude then
+			currentVelocity = desiredVelocity
+		end
+		humanoidRootPart.Velocity = currentVelocity
 
 		if distanceToTarget <= 1 then
 			self.isTeleporting = false
@@ -105,27 +108,6 @@ function TeleportSystem:ProcessQueue()
 			self.onDestinationReached:Fire()
 			self:ProcessQueue()
 			self.retryCount = 0
-			self.lastPosition = currentPos
-		else
-			local steerDirection = self:SteerAwayFromObstacles(currentPos, direction)
-
-			for _, part in pairs(character:GetChildren()) do
-				if part:IsA("BasePart") then
-					part.Velocity = steerDirection * speed
-				end
-			end
-			if distanceMoved < MIN_DISTANCE_MOVED then
-				self.retryCount = self.retryCount + 1
-				if self.retryCount > MAX_RETRIES and #checkpoints > 0 then
-					local nextCheckpoint = table.remove(checkpoints, 1)
-					if nextCheckpoint then
-						humanoidRootPart.Position = nextCheckpoint
-					end
-					self.retryCount = 0
-				end
-			else
-				self.retryCount = 0
-			end
 			self.lastPosition = currentPos
 		end
 	end)

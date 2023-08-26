@@ -17,12 +17,12 @@ end
 function TeleportSystem.new(config)
 	local self = setmetatable({}, TeleportSystem)
 	self.queue = {}
+	self.maxHeightAboveGround = 15
 	self.isTeleporting = false
 	self.currentConnection = nil
 	self.onDestinationReached = Instance.new("BindableEvent")
 	self.retryCount = 0
 	self.lastPosition = Vector3.new()
-	self.maxHeightAboveGround = 15
 	self.targetWaypoint = nil
 	self.currentSpeed = 0
 	self.RAYCAST_DISTANCE = 50

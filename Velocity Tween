@@ -36,19 +36,31 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	local smallestDistanceToTarget = math.huge
 	local dynamicAngles = getDynamicAngles((endPos - position).Unit, self.targetWaypoint - position)
 
-	local upwardRayDistance = self.RAYCAST_DISTANCE * 2
-	local upwardRay = Ray.new(position, Vector3.new(0, 1, 0) * upwardRayDistance)
-	local hitUpward, hitPositionUpward = workspace:FindPartOnRay(upwardRay)
+	for _, angle in ipairs(dynamicAngles) do
+		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
+		local ray = Ray.new(position, newDirection * self.RAYCAST_DISTANCE)
+		local hit, hitPosition = workspace:FindPartOnRay(ray)
 
-	if hitUpward and not isTerrain(hitUpward) then
-		local awayFromObstacle = (position - hitPositionUpward).Unit
-		bestDirection = Vector3.new(awayFromObstacle.X, 1, awayFromObstacle.Z)
+		if not hit or isTerrain(hit) then
+			local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
+			if distanceToTargetFromHit < smallestDistanceToTarget then
+				smallestDistanceToTarget = distanceToTargetFromHit
+				bestDirection = newDirection
+			end
+		end
+	end
 
-		return bestDirection
-	elseif not hitUpward or isTerrain(hitUpward) then
-		bestDirection = Vector3.new(0, 1, 0)
+	if not bestDirection and endPos.Y > position.Y then
+		local upwardRayDistance = self.RAYCAST_DISTANCE * 2
+		local upwardRay = Ray.new(position, Vector3.new(0, 1, 0) * upwardRayDistance)
+		local hitUpward, hitPositionUpward = workspace:FindPartOnRay(upwardRay)
 
-		return bestDirection
+		if not hitUpward or isTerrain(hitUpward) then
+			bestDirection = Vector3.new(0, 1, 0)
+		else
+			local awayFromObstacle = (position - hitPositionUpward).Unit
+			bestDirection = Vector3.new(awayFromObstacle.X, 1, awayFromObstacle.Z)
+		end
 	end
 
 	for _, angle in ipairs(dynamicAngles) do

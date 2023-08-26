@@ -22,11 +22,11 @@ function TeleportSystem.new(config)
 	self.onDestinationReached = Instance.new("BindableEvent")
 	self.retryCount = 0
 	self.lastPosition = Vector3.new()
-	self.maxHeightAboveGround = config.maxHeightAboveGround or 15
+	self.maxHeightAboveGround = 15
 	self.targetWaypoint = nil
 	self.currentSpeed = 0
-	self.RAYCAST_DISTANCE = config.RAYCAST_DISTANCE or 50
-	self.RAYCAST_ANGLES = config.RAYCAST_ANGLES or {0, 45, -45, 90, -90, 135, -135, 180, -180}
+	self.RAYCAST_DISTANCE = 50
+	self.RAYCAST_ANGLES = {0, 45, -45, 90, -90, 135, -135, 180, -180}
 	self.previousWaypoints = {}
 	self.startTime = tick()
 	return self

@@ -32,28 +32,24 @@ function TeleportSystem.new(config)
 end
 
 function TeleportSystem:ProbeAroundObstacle(position, endPos)
-local bestDirection = nil
-local smallestDistanceToTarget = math.huge
-local dynamicAngles = getDynamicAngles((endPos - position).Unit, self.targetWaypoint - position)
+	local bestDirection = nil
+	local smallestDistanceToTarget = math.huge
+	local dynamicAngles = getDynamicAngles((endPos - position).Unit, self.targetWaypoint - position)
 
-local upwardRayDistance = self.RAYCAST_DISTANCE * 2
-local upwardRay = Ray.new(position, Vector3.new(0, 1, 0) * upwardRayDistance)
-local hitUpward, hitPositionUpward = workspace:FindPartOnRay(upwardRay)
+	local upwardRayDistance = self.RAYCAST_DISTANCE * 2
+	local upwardRay = Ray.new(position, Vector3.new(0, 1, 0) * upwardRayDistance)
+	local hitUpward, hitPositionUpward = workspace:FindPartOnRay(upwardRay)
 
-if not hitUpward or isTerrain(hitUpward) then
-	bestDirection = Vector3.new(0, 1, 0)
+	if hitUpward and not isTerrain(hitUpward) then
+		local awayFromObstacle = (position - hitPositionUpward).Unit
+		bestDirection = Vector3.new(awayFromObstacle.X, 1, awayFromObstacle.Z)
 
-	local forwardDirection = (endPos - position).Unit
-	bestDirection = bestDirection + forwardDirection
-
-	local clearanceRay = Ray.new(hitPositionUpward, forwardDirection * self.RAYCAST_DISTANCE)
-	local hitClearance = workspace:FindPartOnRay(clearanceRay)
-	if hitClearance then
+		return bestDirection
+	elseif not hitUpward or isTerrain(hitUpward) then
 		bestDirection = Vector3.new(0, 1, 0)
-	end
 
-	return bestDirection
-end
+		return bestDirection
+	end
 
 	for _, angle in ipairs(dynamicAngles) do
 		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit

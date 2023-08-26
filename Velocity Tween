@@ -57,6 +57,7 @@ function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
 	local currentPosition = startPos
 
 	while (currentPosition - endPos).Magnitude > 1 do
+		task.wait()
 		local direction = (endPos - currentPosition).Unit
 		local ray = Ray.new(currentPosition, direction * self.RAYCAST_DISTANCE)
 		local hit, hitPosition = workspace:FindPartOnRay(ray)
@@ -152,6 +153,7 @@ function TeleportSystem:ProcessQueue()
 
 	if not self.currentConnection then
 		self.currentConnection = game:GetService("RunService").RenderStepped:Connect(function(dt)
+			task.wait(dt)
 			if currentWaypointIndex > #waypoints then
 				self.isTeleporting = false
 				if self.currentConnection then

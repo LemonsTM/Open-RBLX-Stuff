@@ -1,14 +1,20 @@
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
-local RAYCAST_OFFSET = 1
-local RAYCAST_DISTANCE = 50
-local RAYCAST_ANGLES = {0, 45, -45, 90, -90, 135, -135, 180, -180}
-local MAX_RETRIES = 3
-local HEIGHT_JUMP = 50
+local TIMEOUT = 10
 local ACCELERATION_RATE = 5
 
-function TeleportSystem.new()
+local function isTerrain(part)
+	return part:IsA("Terrain")
+end
+
+local function getDynamicAngles(characterOrientation, targetDirection)
+	local relativeAngle = math.deg(math.acos(characterOrientation:Dot(targetDirection)))
+	local angles = {relativeAngle, relativeAngle + 45, relativeAngle - 45, relativeAngle + 90, relativeAngle - 90}
+	return angles
+end
+
+function TeleportSystem.new(config)
 	local self = setmetatable({}, TeleportSystem)
 	self.queue = {}
 	self.isTeleporting = false
@@ -16,109 +22,48 @@ function TeleportSystem.new()
 	self.onDestinationReached = Instance.new("BindableEvent")
 	self.retryCount = 0
 	self.lastPosition = Vector3.new()
-	self.maxHeightAboveGround = 15
+	self.maxHeightAboveGround = config.maxHeightAboveGround or 15
 	self.targetWaypoint = nil
 	self.currentSpeed = 0
+	self.RAYCAST_DISTANCE = config.RAYCAST_DISTANCE or 50
+	self.RAYCAST_ANGLES = config.RAYCAST_ANGLES or {0, 45, -45, 90, -90, 135, -135, 180, -180}
+	self.previousWaypoints = {}
+	self.startTime = tick()
 	return self
 end
 
 function TeleportSystem:ProbeAroundObstacle(position, endPos)
-	local character = game.Players.LocalPlayer.Character
-	local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-	if not humanoidRootPart then return nil end
-
-	local characterSize = humanoidRootPart.Size
-	local halfWidth = characterSize.X / 2
-
 	local bestDirection = nil
 	local smallestDistanceToTarget = math.huge
+	local dynamicAngles = getDynamicAngles((endPos - position).Unit, self.targetWaypoint - position)
+	for _, angle in ipairs(dynamicAngles) do
+		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
+		local ray = Ray.new(position, newDirection * self.RAYCAST_DISTANCE)
+		local hit, hitPosition = workspace:FindPartOnRay(ray)
 
-	local tasks = {}
-	local completedTasks = 0
-
-	for _, angle in ipairs(RAYCAST_ANGLES) do
-		local newTask = task.spawn(function()
-			local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
-			local ray = Ray.new(position, newDirection * (RAYCAST_DISTANCE + halfWidth))
-			local hit, hitPosition = workspace:FindPartOnRay(ray)
-
-			if not hit then
-				local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
-				if distanceToTargetFromHit < smallestDistanceToTarget then
-					smallestDistanceToTarget = distanceToTargetFromHit
-					bestDirection = newDirection
-				end
-			else
-				local spaceRay = Ray.new(hitPosition, newDirection * characterSize.X)
-				local spaceHit = workspace:FindPartOnRay(spaceRay)
-				if not spaceHit then
-					if newDirection.Y > 0 then
-						local overheadRay = Ray.new(hitPosition, Vector3.new(0, HEIGHT_JUMP, 0))
-						local overheadHit = workspace:FindPartOnRay(overheadRay)
-						if not overheadHit then
-							local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
-							if distanceToTargetFromHit < smallestDistanceToTarget then
-								smallestDistanceToTarget = distanceToTargetFromHit
-								bestDirection = newDirection
-							end
-						end
-					end
-				end
+		if not hit or isTerrain(hit) then
+			local distanceToTargetFromHit = (endPos - hitPosition).Magnitude
+			if distanceToTargetFromHit < smallestDistanceToTarget then
+				smallestDistanceToTarget = distanceToTargetFromHit
+				bestDirection = newDirection
 			end
-
-			completedTasks = completedTasks + 1
-		end)
-		table.insert(tasks, newTask)
+		end
 	end
-
-	while completedTasks < #RAYCAST_ANGLES do
-		task.wait()
-	end
-
 	return bestDirection
 end
 
-function TeleportSystem:CalculateDynamicPath(startPos, endPos, stayOnGround)
-	local waypoints = {endPos}
-	local currentPosition = startPos
-
-	while (currentPosition - endPos).Magnitude > 1 do
-		task.wait()
-		local direction = (endPos - currentPosition).Unit
-		local ray = Ray.new(currentPosition, direction * RAYCAST_DISTANCE)
-		local hit, hitPosition = workspace:FindPartOnRay(ray)
-
-		if hit then
-			local bestDirection = self:ProbeAroundObstacle(hitPosition, endPos)
-			if bestDirection then
-				local newWaypoint = hitPosition + bestDirection * 5
-				if stayOnGround and bestDirection.Y == 0 then
-					newWaypoint = Vector3.new(newWaypoint.X, currentPosition.Y, newWaypoint.Z)
-				end
-
-				local groundRay = Ray.new(newWaypoint, Vector3.new(0, -1, 0) * self.maxHeightAboveGround)
-				local groundHit, groundPosition = workspace:FindPartOnRay(groundRay)
-				if groundHit then
-					local heightAboveGround = newWaypoint.Y - groundPosition.Y
-					if heightAboveGround > self.maxHeightAboveGround then
-						newWaypoint = Vector3.new(newWaypoint.X, groundPosition.Y + self.maxHeightAboveGround, newWaypoint.Z)
-					end
-				end
-
-				table.insert(waypoints, 1, newWaypoint)
-				currentPosition = newWaypoint
-			else
-				break
-			end
-		else
-			currentPosition = currentPosition + direction * 5
-		end
-	end
-
-	return waypoints
+function TeleportSystem:isSafeDestination(destination)
+	local ray = Ray.new(destination, Vector3.new(0, -1, 0) * self.maxHeightAboveGround)
+	local hit = workspace:FindPartOnRay(ray)
+	return not hit or isTerrain(hit)
 end
 
 function TeleportSystem:TeleportTo(position, speed, stayOnGround)
+	if not self:isSafeDestination(position) then
+		warn("Unsafe destination!")
+		return
+	end
+
 	table.insert(self.queue, {position, speed, stayOnGround})
 	if not self.isTeleporting then
 		self:ProcessQueue()
@@ -137,6 +82,19 @@ function TeleportSystem:ProcessQueue()
 
 	local data = table.remove(self.queue, 1)
 	local position, speed, stayOnGround = unpack(data)
+
+	if tick() - self.startTime > TIMEOUT then
+		self:Cancel()
+		warn("Pathfinding timed out!")
+		return
+	end
+
+	if self.isStuck then
+		local lastWaypoint = table.remove(self.previousWaypoints)
+		if lastWaypoint then
+			self.targetWaypoint = lastWaypoint
+		end
+	end
 
 	if self.isTeleporting then
 		self.targetWaypoint = position
@@ -192,7 +150,6 @@ function TeleportSystem:Cancel()
 	end
 	self.isTeleporting = false
 	self.queue = {}
-	self:ClearVisualization()
 end
 
 return TeleportSystem

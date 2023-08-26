@@ -1,8 +1,7 @@
 local TeleportSystem = {}
 TeleportSystem.__index = TeleportSystem
 
-local TIMEOUT = 10
-local ACCELERATION_RATE = 5
+local ACCELERATION_RATE = 15
 
 local function isTerrain(part)
 	return part:IsA("Terrain")
@@ -36,6 +35,14 @@ function TeleportSystem:ProbeAroundObstacle(position, endPos)
 	local bestDirection = nil
 	local smallestDistanceToTarget = math.huge
 	local dynamicAngles = getDynamicAngles((endPos - position).Unit, self.targetWaypoint - position)
+
+	local upwardRay = Ray.new(position, Vector3.new(0, 1, 0) * self.RAYCAST_DISTANCE)
+	local hitUpward = workspace:FindPartOnRay(upwardRay)
+	if not hitUpward or isTerrain(hitUpward) then
+		bestDirection = Vector3.new(0, 1, 0)
+		return bestDirection
+	end
+
 	for _, angle in ipairs(dynamicAngles) do
 		local newDirection = CFrame.fromEulerAnglesXYZ(0, math.rad(angle), 0) * (endPos - position).Unit
 		local ray = Ray.new(position, newDirection * self.RAYCAST_DISTANCE)
@@ -122,12 +129,6 @@ function TeleportSystem:ProcessQueue()
 
 	local data = table.remove(self.queue, 1)
 	local position, speed, stayOnGround = unpack(data)
-
-	if tick() - self.startTime > TIMEOUT then
-		self:Cancel()
-		warn("Pathfinding timed out!")
-		return
-	end
 
 	if self.isStuck then
 		local lastWaypoint = table.remove(self.previousWaypoints)
